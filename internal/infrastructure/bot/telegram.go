@@ -13,7 +13,8 @@ import (
 func Start() {
 	sqlDB, err := database.NewSQLiteDB()
 	if err != nil {
-		log.Fatalf("Failed to initialize SQLite database: %v", err)
+		log.Printf("[Adapter][Start]Error initializing SQLite database: %v", err)
+		log.Fatal(err)
 	}
 
 	// Use SQLite as primary storage
@@ -21,6 +22,7 @@ func Start() {
 
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_TOKEN"))
 	if err != nil {
+		log.Printf("[Adapter][Start]Error initializing Telegram bot: %v", err)
 		log.Panic(err)
 	}
 
@@ -29,6 +31,7 @@ func Start() {
 
 	updates, err := bot.GetUpdatesChan(u)
 	if err != nil {
+		log.Printf("[Adapter][Start]Error getting updates channel: %v", err)
 		log.Fatal(err)
 	}
 
@@ -44,29 +47,39 @@ func Start() {
 		case messageText == "ping":
 			response := botService.HandlePing()
 			msg := tgbotapi.NewMessage(chatID, response)
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		case messageText == "penumpang":
 			response := botService.HandlePassenger(chatID)
 			msg := tgbotapi.NewMessage(chatID, response)
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		case messageText == "daftarpenumpang":
 			response, err := botService.GetPassengerList()
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membaca data penumpang"
 			}
 			msg := tgbotapi.NewMessage(chatID, response)
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		case messageText == "driver":
 			response := botService.HandleDriver(chatID)
 			msg := tgbotapi.NewMessage(chatID, response)
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		case messageText == "drivers":
 			response, err := botService.GetDriverList()
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membaca data driver"
 			}
 			msg := tgbotapi.NewMessage(chatID, response)
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		default:
 			if strings.HasPrefix(strings.ToLower(messageText), "keberangkatan") {
 				response, err := botService.ProcessDeparture(messageText)
@@ -74,14 +87,18 @@ func Start() {
 					response = "Maaf, terjadi kesalahan saat memproses keberangkatan"
 				}
 				msg := tgbotapi.NewMessage(chatID, response)
-				bot.Send(msg)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+				}
 			} else if strings.HasPrefix(strings.ToLower(messageText), "kepulangan") {
 				response, err := botService.ProcessReturn(messageText)
 				if err != nil {
 					response = "Maaf, terjadi kesalahan saat memproses kepulangan"
 				}
 				msg := tgbotapi.NewMessage(chatID, response)
-				bot.Send(msg)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+				}
 			} else if botService.IsWaitingForPassengerName(chatID) {
 				err := botService.AddPassenger(messageText)
 				var response string
@@ -92,7 +109,9 @@ func Start() {
 				}
 				botService.ClearWaitingStatus(chatID)
 				msg := tgbotapi.NewMessage(chatID, response)
-				bot.Send(msg)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+				}
 			} else if botService.IsWaitingForDriverName(chatID) {
 				err := botService.AddDriver(messageText)
 				var response string
@@ -103,7 +122,9 @@ func Start() {
 				}
 				botService.ClearWaitingStatus(chatID)
 				msg := tgbotapi.NewMessage(chatID, response)
-				bot.Send(msg)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+				}
 			}
 		}
 	}

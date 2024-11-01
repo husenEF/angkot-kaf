@@ -6,12 +6,9 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/robzlabz/angkot/internal/core/ports"
 )
 
 // Add explicit interface implementation check
-var _ ports.Storage = (*FileDB)(nil)
 
 type FileDB struct {
 	basePath string

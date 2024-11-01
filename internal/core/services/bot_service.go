@@ -2,8 +2,10 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/robzlabz/angkot/internal/core/constants"
 	"github.com/robzlabz/angkot/internal/core/ports"
 )
 
@@ -31,7 +33,11 @@ func (s *botService) HandlePassenger(chatID int64) string {
 }
 
 func (s *botService) AddPassenger(name string) error {
-	return s.storage.SavePassenger(name)
+	if err := s.storage.SavePassenger(name); err != nil {
+		log.Printf("[Service][AddPassenger]Error failed to save passenger: %v", err)
+		return err
+	}
+	return nil
 }
 
 func (s *botService) IsWaitingForPassengerName(chatID int64) bool {
@@ -46,6 +52,7 @@ func (s *botService) ClearWaitingStatus(chatID int64) {
 func (s *botService) GetPassengerList() (string, error) {
 	passengers, err := s.storage.GetPassengers()
 	if err != nil {
+		log.Printf("[Service][GetPassengerList]Error failed to get passengers: %v", err)
 		return "", err
 	}
 
@@ -64,7 +71,11 @@ func (s *botService) HandleDriver(chatID int64) string {
 }
 
 func (s *botService) AddDriver(name string) error {
-	return s.storage.SaveDriver(name)
+	if err := s.storage.SaveDriver(name); err != nil {
+		log.Printf("[Service][AddDriver]Error failed to save driver: %v", err)
+		return err
+	}
+	return nil
 }
 
 func (s *botService) GetDriverList() (string, error) {
@@ -104,6 +115,7 @@ func (s *botService) ProcessDeparture(text string) (string, error) {
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
 	exists, err := s.storage.IsDriverExists(driverName)
 	if err != nil {
+		log.Printf("[Service][ProcessDeparture]Error checking driver existence: %v", err)
 		return "", err
 	}
 	if !exists {
@@ -129,10 +141,28 @@ func (s *botService) ProcessDeparture(text string) (string, error) {
 
 	err = s.storage.SaveDeparture(driverName, passengers)
 	if err != nil {
+		log.Printf("[Service][ProcessDeparture]Error saving departure: %v", err)
 		return "", err
 	}
 
-	return fmt.Sprintf("Keberangkatan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d", driverName, len(passengers)), nil
+	response := fmt.Sprintf("Keberangkatan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d\n\nBiaya per penumpang:\n",
+		driverName, len(passengers))
+
+	for _, passenger := range passengers {
+		tripCount, err := s.storage.GetPassengerTripPrice(passenger)
+		if err != nil {
+			return "", err
+		}
+
+		price := constants.SingleTripPrice
+		if tripCount > 1 {
+			price = constants.RoundTripPrice / 2
+		}
+
+		response += fmt.Sprintf("- %s: Rp %d\n", passenger, price)
+	}
+
+	return response, nil
 }
 
 func (s *botService) ProcessReturn(text string) (string, error) {
@@ -153,6 +183,7 @@ func (s *botService) ProcessReturn(text string) (string, error) {
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
 	exists, err := s.storage.IsDriverExists(driverName)
 	if err != nil {
+		log.Printf("[Service][ProcessReturn]Error checking driver existence: %v", err)
 		return "", err
 	}
 	if !exists {
@@ -176,10 +207,65 @@ func (s *botService) ProcessReturn(text string) (string, error) {
 		return "Minimal harus ada satu penumpang", nil
 	}
 
-	err = s.storage.SaveReturn(driverName, passengers)
+	// Get departure passengers first
+	departurePassengers, err := s.storage.GetDeparturePassengers(driverName)
 	if err != nil {
+		log.Printf("[Service][ProcessReturn]Error getting departure passengers: %v", err)
 		return "", err
 	}
 
-	return fmt.Sprintf("Kepulangan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d", driverName, len(passengers)), nil
+	// Create map of return passengers for easy lookup
+	returnPassengersMap := make(map[string]bool)
+	for _, p := range passengers {
+		returnPassengersMap[p] = true
+	}
+
+	// Find passengers who only departed
+	var onlyDeparture []string
+	for _, dp := range departurePassengers {
+		if !returnPassengersMap[dp] {
+			onlyDeparture = append(onlyDeparture, dp)
+		}
+	}
+
+	err = s.storage.SaveReturn(driverName, passengers)
+	if err != nil {
+		log.Printf("[Service][ProcessReturn]Error saving return: %v", err)
+		return "", err
+	}
+
+	response := fmt.Sprintf("Kepulangan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d\n\nBiaya per penumpang:\n",
+		driverName, len(passengers))
+
+	totalAmount := 0
+	for _, passenger := range passengers {
+		tripCount, err := s.storage.GetPassengerTripPrice(passenger)
+		if err != nil {
+			return "", err
+		}
+
+		var price int
+		var note string
+		if tripCount > 1 {
+			price = constants.RoundTripPrice
+			note = "(PP)"
+			totalAmount += price
+		} else {
+			price = constants.SingleTripPrice
+			note = "(Sekali jalan)"
+			totalAmount += price
+		}
+
+		response += fmt.Sprintf("- %s: Rp %d %s\n", passenger, price, note)
+	}
+
+	if len(onlyDeparture) > 0 {
+		response += "\nPenumpang yang hanya berangkat:\n"
+		for _, passenger := range onlyDeparture {
+			response += fmt.Sprintf("- %s (hanya berangkat)\n", passenger)
+		}
+	}
+
+	response += fmt.Sprintf("\nTotal pembayaran: Rp %d", totalAmount)
+	return response, nil
 }
