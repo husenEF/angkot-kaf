@@ -150,21 +150,53 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 		return err
 	}
 
-	result, err := tx.Exec("INSERT INTO departures (driver_id) VALUES (?)", driverID)
-	if err != nil {
-		return err
-	}
+	// Check if departure exists today for this driver
+	var existingDepartureID int64
+	today := time.Now().Format("2006-01-02")
+	err = tx.QueryRow(`
+		SELECT id FROM departures 
+		WHERE driver_id = ? AND date(created_at) = date(?)`,
+		driverID, today).Scan(&existingDepartureID)
 
-	departureID, err := result.LastInsertId()
-	if err != nil {
-		return err
-	}
-
-	for _, passenger := range passengers {
-		_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name) VALUES (?, ?)",
-			departureID, passenger)
+	if err == nil {
+		// Delete existing passengers for today's departure
+		_, err = tx.Exec("DELETE FROM departure_passengers WHERE departure_id = ?", existingDepartureID)
 		if err != nil {
 			return err
+		}
+		// Update existing departure timestamp
+		_, err = tx.Exec("UPDATE departures SET created_at = CURRENT_TIMESTAMP WHERE id = ?", existingDepartureID)
+		if err != nil {
+			return err
+		}
+
+		// Add new passengers to existing departure
+		for _, passenger := range passengers {
+			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name) VALUES (?, ?)",
+				existingDepartureID, passenger)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// Create new departure
+		result, err := tx.Exec("INSERT INTO departures (driver_id) VALUES (?)", driverID)
+		if err != nil {
+			return err
+		}
+
+		departureID, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Add passengers for new departure
+		for _, passenger := range passengers {
+			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name) VALUES (?, ?)",
+				departureID, passenger)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -184,21 +216,53 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 		return err
 	}
 
-	result, err := tx.Exec("INSERT INTO returns (driver_id) VALUES (?)", driverID)
-	if err != nil {
-		return err
-	}
+	// Check if return exists today for this driver
+	var existingReturnID int64
+	today := time.Now().Format("2006-01-02")
+	err = tx.QueryRow(`
+		SELECT id FROM returns 
+		WHERE driver_id = ? AND date(created_at) = date(?)`,
+		driverID, today).Scan(&existingReturnID)
 
-	returnID, err := result.LastInsertId()
-	if err != nil {
-		return err
-	}
-
-	for _, passenger := range passengers {
-		_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name) VALUES (?, ?)",
-			returnID, passenger)
+	if err == nil {
+		// Delete existing passengers for today's return
+		_, err = tx.Exec("DELETE FROM return_passengers WHERE return_id = ?", existingReturnID)
 		if err != nil {
 			return err
+		}
+		// Update existing return timestamp
+		_, err = tx.Exec("UPDATE returns SET created_at = CURRENT_TIMESTAMP WHERE id = ?", existingReturnID)
+		if err != nil {
+			return err
+		}
+
+		// Add new passengers to existing return
+		for _, passenger := range passengers {
+			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name) VALUES (?, ?)",
+				existingReturnID, passenger)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// Create new return
+		result, err := tx.Exec("INSERT INTO returns (driver_id) VALUES (?)", driverID)
+		if err != nil {
+			return err
+		}
+
+		returnID, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Add passengers for new return
+		for _, passenger := range passengers {
+			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name) VALUES (?, ?)",
+				returnID, passenger)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
