@@ -5,18 +5,17 @@ import (
 	"strings"
 
 	"github.com/robzlabz/angkot/internal/core/ports"
-	"github.com/robzlabz/angkot/internal/infrastructure/database"
 )
 
 type botService struct {
-	db                      *database.FileDB
+	storage                 ports.Storage
 	waitingForPassengerName map[int64]bool
 	waitingForDriverName    map[int64]bool
 }
 
-func NewBotService() ports.BotService {
+func NewBotService(storage ports.Storage) ports.BotService {
 	return &botService{
-		db:                      database.NewFileDB(),
+		storage:                 storage,
 		waitingForPassengerName: make(map[int64]bool),
 		waitingForDriverName:    make(map[int64]bool),
 	}
@@ -32,7 +31,7 @@ func (s *botService) HandlePassenger(chatID int64) string {
 }
 
 func (s *botService) AddPassenger(name string) error {
-	return s.db.SavePassenger(name)
+	return s.storage.SavePassenger(name)
 }
 
 func (s *botService) IsWaitingForPassengerName(chatID int64) bool {
@@ -45,7 +44,7 @@ func (s *botService) ClearWaitingStatus(chatID int64) {
 }
 
 func (s *botService) GetPassengerList() (string, error) {
-	passengers, err := s.db.GetPassengers()
+	passengers, err := s.storage.GetPassengers()
 	if err != nil {
 		return "", err
 	}
@@ -65,11 +64,11 @@ func (s *botService) HandleDriver(chatID int64) string {
 }
 
 func (s *botService) AddDriver(name string) error {
-	return s.db.SaveDriver(name)
+	return s.storage.SaveDriver(name)
 }
 
 func (s *botService) GetDriverList() (string, error) {
-	drivers, err := s.db.GetDrivers()
+	drivers, err := s.storage.GetDrivers()
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +102,7 @@ func (s *botService) ProcessDeparture(text string) (string, error) {
 	}
 
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
-	exists, err := s.db.IsDriverExists(driverName)
+	exists, err := s.storage.IsDriverExists(driverName)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +127,7 @@ func (s *botService) ProcessDeparture(text string) (string, error) {
 		return "Minimal harus ada satu penumpang", nil
 	}
 
-	err = s.db.SaveDeparture(driverName, passengers)
+	err = s.storage.SaveDeparture(driverName, passengers)
 	if err != nil {
 		return "", err
 	}
@@ -152,7 +151,7 @@ func (s *botService) ProcessReturn(text string) (string, error) {
 	}
 
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
-	exists, err := s.db.IsDriverExists(driverName)
+	exists, err := s.storage.IsDriverExists(driverName)
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +176,7 @@ func (s *botService) ProcessReturn(text string) (string, error) {
 		return "Minimal harus ada satu penumpang", nil
 	}
 
-	err = s.db.SaveReturn(driverName, passengers)
+	err = s.storage.SaveReturn(driverName, passengers)
 	if err != nil {
 		return "", err
 	}

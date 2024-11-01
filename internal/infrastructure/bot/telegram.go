@@ -6,11 +6,18 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/robzlabz/angkot/internal/core/services"
+	"github.com/robzlabz/angkot/internal/infrastructure/database"
 	"github.com/spf13/viper"
 )
 
 func Start() {
-	botService := services.NewBotService()
+	sqlDB, err := database.NewSQLiteDB()
+	if err != nil {
+		log.Fatalf("Failed to initialize SQLite database: %v", err)
+	}
+
+	// Use SQLite as primary storage
+	botService := services.NewBotService(sqlDB)
 
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_TOKEN"))
 	if err != nil {
