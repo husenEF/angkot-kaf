@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Start() {
+func Start() error {
 	sqlDB, err := database.NewSQLiteDB()
 	if err != nil {
 		log.Printf("[Adapter][Start]Error initializing SQLite database: %v", err)
@@ -23,7 +23,7 @@ func Start() {
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_TOKEN"))
 	if err != nil {
 		log.Printf("[Adapter][Start]Error initializing Telegram bot: %v", err)
-		log.Panic(err)
+		return err
 	}
 
 	u := tgbotapi.NewUpdate(0)
@@ -32,7 +32,7 @@ func Start() {
 	updates, err := bot.GetUpdatesChan(u)
 	if err != nil {
 		log.Printf("[Adapter][Start]Error getting updates channel: %v", err)
-		log.Fatal(err)
+		return err
 	}
 
 	for update := range updates {
@@ -128,4 +128,6 @@ func Start() {
 			}
 		}
 	}
+
+	return nil
 }
