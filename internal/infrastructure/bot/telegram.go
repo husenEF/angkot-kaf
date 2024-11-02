@@ -219,6 +219,30 @@ func Start() error {
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
+			} else if messageText == "/backupdb" {
+				// only admin can backup db
+				if chatID != viper.GetInt64("ADMIN_ID") {
+					msg := tgbotapi.NewMessage(chatID, "Anda tidak memiliki izin untuk mengakses ini")
+					if _, err := bot.Send(msg); err != nil {
+						log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+					}
+					continue
+				}
+
+				msg := tgbotapi.NewMessage(chatID, "Mengirim file database...")
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+				}
+				// Buat file config untuk dikirim
+				dbConfig := tgbotapi.NewDocumentUpload(chatID, "database/angkot.db")
+				// Kirim file
+				if _, err := bot.Send(dbConfig); err != nil {
+					log.Printf("[Adapter][MessageHandler]Error sending database file: %v", err)
+					msg := tgbotapi.NewMessage(chatID, "Gagal mengirim file database")
+					if _, err := bot.Send(msg); err != nil {
+						log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+					}
+				}
 			}
 		}
 	}
