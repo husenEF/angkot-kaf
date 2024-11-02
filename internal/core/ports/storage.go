@@ -11,4 +11,6 @@ type Storage interface {
 	GetPassengerTripPrice(passanger string) (int, error)
 	GetDeparturePassengers(driverName string) ([]string, error)
 	HasDepartureToday(passengerName string) (bool, error)
+	GetTodayDrivers() ([]string, error)
+	GetReturnPassengers(driverName string) ([]string, error)
 }

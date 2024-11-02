@@ -11,6 +11,7 @@ type BotService interface {
 	AddDriver(name string) error
 	GetDriverList() (string, error)
 	IsWaitingForDriverName(chatID int64) bool
-	ProcessDeparture(string, []string) string
-	ProcessReturn(string, []string) string
+	ProcessDeparture(string, []string) (string, error)
+	ProcessReturn(string, []string) (string, error)
+	GetTodayReport() (string, error)
 }

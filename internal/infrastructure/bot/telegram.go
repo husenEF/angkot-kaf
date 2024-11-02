@@ -130,17 +130,32 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
+		case messageText == "/laporan":
+			response, err := botService.GetTodayReport()
+			if err != nil {
+				response = "Maaf, terjadi kesalahan saat membuat laporan"
+			}
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		default:
 			if strings.HasPrefix(strings.ToLower(messageText), "keberangkatan") {
 				lines := strings.Split(messageText, "\n")
-				response := botService.ProcessDeparture(lines[1], lines[2:])
+				response, err := botService.ProcessDeparture(lines[1], lines[2:])
+				if err != nil {
+					response = err.Error()
+				}
 				msg := tgbotapi.NewMessage(chatID, response)
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
 			} else if strings.HasPrefix(strings.ToLower(messageText), "kepulangan") {
 				lines := strings.Split(messageText, "\n")
-				response := botService.ProcessReturn(messageText, lines)
+				response, err := botService.ProcessReturn(lines[1], lines[2:])
+				if err != nil {
+					response = err.Error()
+				}
 				msg := tgbotapi.NewMessage(chatID, response)
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
