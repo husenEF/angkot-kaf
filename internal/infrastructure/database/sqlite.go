@@ -148,7 +148,6 @@ func (db *SQLiteDB) GetPassengers() ([]string, error) {
 	return passengers, nil
 }
 
-// Add new method to check if passenger has departure today
 func (db *SQLiteDB) HasDepartureToday(passengerName string) (bool, error) {
 	query := `
 		SELECT EXISTS (
@@ -161,10 +160,9 @@ func (db *SQLiteDB) HasDepartureToday(passengerName string) (bool, error) {
 	return exists, err
 }
 
-// Add new method to check passenger trips
 func (db *SQLiteDB) GetPassengerTripPrice(passengerName string) (int, error) {
 	query := `
-		SELECT 
+		SELECT
 			(SELECT COUNT(*) FROM departure_passengers dp
 			 JOIN departures d ON dp.departure_id = d.id
 			 WHERE dp.passenger_name = ? AND date(d.created_at) = date('now'))
@@ -202,7 +200,7 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 	var existingDepartureID int64
 	today := time.Now().Format("2006-01-02")
 	err = tx.QueryRow(`
-		SELECT id FROM departures 
+		SELECT id FROM departures
 		WHERE driver_id = ? AND date(created_at) = date(?)`,
 		driverID, today).Scan(&existingDepartureID)
 
@@ -299,7 +297,7 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 	var existingReturnID int64
 	today := time.Now().Format("2006-01-02")
 	err = tx.QueryRow(`
-		SELECT id FROM returns 
+		SELECT id FROM returns
 		WHERE driver_id = ? AND date(created_at) = date(?)`,
 		driverID, today).Scan(&existingReturnID)
 
@@ -378,7 +376,7 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 
 func (db *SQLiteDB) GetDeparturePassengers(driverName string) ([]string, error) {
 	query := `
-        SELECT DISTINCT dp.passenger_name 
+        SELECT DISTINCT dp.passenger_name
         FROM departure_passengers dp
         JOIN departures d ON dp.departure_id = d.id
         JOIN drivers dr ON d.driver_id = dr.id

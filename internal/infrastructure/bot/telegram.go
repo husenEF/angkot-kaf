@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -43,35 +44,37 @@ func Start() error {
 		chatID := update.Message.Chat.ID
 		messageText := update.Message.Text
 
+		fmt.Printf("Received message: %s from chat ID: %d\n", messageText, chatID)
+
 		switch {
-		case messageText == "ping":
+		case messageText == "/ping":
 			response := botService.HandlePing()
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "penumpang":
+		case messageText == "/santri":
 			response := botService.HandlePassenger(chatID)
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "daftarpenumpang":
+		case messageText == "/daftarsantri":
 			response, err := botService.GetPassengerList()
 			if err != nil {
-				response = "Maaf, terjadi kesalahan saat membaca data penumpang"
+				response = "Maaf, terjadi kesalahan saat membaca data santri"
 			}
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "driver":
+		case messageText == "/driver":
 			response := botService.HandleDriver(chatID)
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "drivers":
+		case messageText == "/drivers":
 			response, err := botService.GetDriverList()
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membaca data driver"
@@ -80,21 +83,64 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
+		case messageText == "/keberangkatan":
+			response := "Format pencatatan keberangkatan:\n\n" +
+				"keberangkatan\n" +
+				"Driver: [nama_driver]\n" +
+				"- [nama_santri_1]\n" +
+				"- [nama_santri_2]\n" +
+				"- [nama_santri_3]\n\n" +
+				"Contoh:\n" +
+				"keberangkatan\n" +
+				"Driver: Pak Ahmad\n" +
+				"- Santri Ali\n" +
+				"- Santri Umar\n" +
+				"- Santri Hasan"
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
+		case messageText == "/kepulangan":
+			response := "Format pencatatan kepulangan:\n\n" +
+				"kepulangan\n" +
+				"Driver: [nama_driver]\n" +
+				"- [nama_santri_1]\n" +
+				"- [nama_santri_2]\n" +
+				"- [nama_santri_3]\n\n" +
+				"Contoh:\n" +
+				"kepulangan\n" +
+				"Driver: Pak Ahmad\n" +
+				"- Santri Ali\n" +
+				"- Santri Umar\n" +
+				"- Santri Hasan"
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
+		case messageText == "/start" || messageText == "/help":
+			response := "Selamat datang! Berikut adalah daftar perintah yang tersedia:\n" +
+				"/ping - Cek koneksi bot\n" +
+				"/santri - Tambah santri baru\n" +
+				"/daftarsantri - Lihat daftar santri\n" +
+				"/driver - Tambah driver baru\n" +
+				"/drivers - Lihat daftar driver\n" +
+				"/keberangkatan - Lihat format pencatatan keberangkatan\n" +
+				"/kepulangan - Lihat format pencatatan kepulangan"
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		default:
 			if strings.HasPrefix(strings.ToLower(messageText), "keberangkatan") {
-				response, err := botService.ProcessDeparture(messageText)
-				if err != nil {
-					response = "Maaf, terjadi kesalahan saat memproses keberangkatan"
-				}
+				lines := strings.Split(messageText, "\n")
+				response := botService.ProcessDeparture(lines[1], lines[2:])
 				msg := tgbotapi.NewMessage(chatID, response)
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
 			} else if strings.HasPrefix(strings.ToLower(messageText), "kepulangan") {
-				response, err := botService.ProcessReturn(messageText)
-				if err != nil {
-					response = "Maaf, terjadi kesalahan saat memproses kepulangan"
-				}
+				lines := strings.Split(messageText, "\n")
+				response := botService.ProcessReturn(messageText, lines)
 				msg := tgbotapi.NewMessage(chatID, response)
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)

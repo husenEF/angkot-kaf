@@ -97,175 +97,68 @@ func (s *botService) IsWaitingForDriverName(chatID int64) bool {
 	return s.waitingForDriverName[chatID]
 }
 
-func (s *botService) ProcessDeparture(text string) (string, error) {
-	lines := strings.Split(text, "\n")
-	if len(lines) < 3 {
-		return "Format tidak valid. Gunakan format:\nKeberangkatan\nDriver: [nama]\n- [penumpang1]\n- [penumpang2]", nil
+func (s *botService) ProcessDeparture(driverName string, passengers []string) string {
+	if err := s.storage.SaveDeparture(driverName, passengers); err != nil {
+		log.Printf("[Service][ProcessDeparture]Error saving departure for %s: %v", driverName, err)
 	}
+	// ... existing processing code ...
 
-	if !strings.Contains(strings.ToLower(lines[0]), "keberangkatan") {
-		return "Format tidak valid. Baris pertama harus 'Keberangkatan'", nil
-	}
-
-	driverLine := lines[1]
-	if !strings.HasPrefix(driverLine, "Driver:") {
-		return "Format tidak valid. Baris kedua harus dimulai dengan 'Driver:'", nil
-	}
-
-	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
-	exists, err := s.storage.IsDriverExists(driverName)
-	if err != nil {
-		log.Printf("[Service][ProcessDeparture]Error checking driver existence: %v", err)
-		return "", err
-	}
-	if !exists {
-		return fmt.Sprintf("Driver %s tidak terdaftar dalam database", driverName), nil
-	}
-
-	var passengers []string
-	for i := 2; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		if !strings.HasPrefix(line, "-") {
-			return "Format tidak valid. Daftar penumpang harus dimulai dengan '-'", nil
-		}
-		passenger := strings.TrimSpace(strings.TrimPrefix(line, "-"))
-		passengers = append(passengers, passenger)
-	}
-
-	if len(passengers) == 0 {
-		return "Minimal harus ada satu penumpang", nil
-	}
-
-	err = s.storage.SaveDeparture(driverName, passengers)
-	if err != nil {
-		log.Printf("[Service][ProcessDeparture]Error saving departure: %v", err)
-		return "", err
-	}
-
-	response := fmt.Sprintf("Keberangkatan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d\n\nBiaya per penumpang:\n",
-		driverName, len(passengers))
+	// Hitung biaya per penumpang
+	var response strings.Builder
+	response.WriteString("✅ Keberangkatan berhasil dicatat\n\n")
+	response.WriteString("Driver: " + driverName + "\n")
+	response.WriteString("Daftar Santri:\n")
 
 	for _, passenger := range passengers {
-		tripCount, err := s.storage.GetPassengerTripPrice(passenger)
-		if err != nil {
-			return "", err
-		}
-
+		hasDeparture, _ := s.storage.HasDepartureToday(passenger)
 		price := constants.SingleTripPrice
-		if tripCount > 1 {
-			price = constants.RoundTripPrice / 2
+		if hasDeparture {
+			price = constants.RoundTripPrice
 		}
-
-		response += fmt.Sprintf("- %s: Rp %d\n", passenger, price)
+		response.WriteString(fmt.Sprintf("- %s (Rp %d)\n", passenger, price))
 	}
 
-	return response, nil
+	return response.String()
 }
 
-func (s *botService) ProcessReturn(text string) (string, error) {
-	lines := strings.Split(text, "\n")
-	if len(lines) < 3 {
-		return "Format tidak valid. Gunakan format:\nKepulangan\nDriver: [nama]\n- [penumpang1]\n- [penumpang2]", nil
-	}
-
-	if !strings.Contains(strings.ToLower(lines[0]), "kepulangan") {
-		return "Format tidak valid. Baris pertama harus 'Kepulangan'", nil
-	}
-
-	driverLine := lines[1]
-	if !strings.HasPrefix(driverLine, "Driver:") {
-		return "Format tidak valid. Baris kedua harus dimulai dengan 'Driver:'", nil
-	}
-
-	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "Driver:"))
-	exists, err := s.storage.IsDriverExists(driverName)
-	if err != nil {
-		log.Printf("[Service][ProcessReturn]Error checking driver existence: %v", err)
-		return "", err
-	}
-	if !exists {
-		return fmt.Sprintf("Driver %s tidak terdaftar dalam database", driverName), nil
-	}
-
-	var passengers []string
-	for i := 2; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		if !strings.HasPrefix(line, "-") {
-			return "Format tidak valid. Daftar penumpang harus dimulai dengan '-'", nil
-		}
-		passenger := strings.TrimSpace(strings.TrimPrefix(line, "-"))
-		passengers = append(passengers, passenger)
-	}
-
-	if len(passengers) == 0 {
-		return "Minimal harus ada satu penumpang", nil
-	}
-
-	// Get departure passengers first
-	departurePassengers, err := s.storage.GetDeparturePassengers(driverName)
-	if err != nil {
-		log.Printf("[Service][ProcessReturn]Error getting departure passengers: %v", err)
-		return "", err
-	}
-
-	// Create map of return passengers for easy lookup
-	returnPassengersMap := make(map[string]bool)
-	for _, p := range passengers {
-		returnPassengersMap[p] = true
-	}
-
-	// Find passengers who only departed
-	var onlyDeparture []string
-	for _, dp := range departurePassengers {
-		if !returnPassengersMap[dp] {
-			onlyDeparture = append(onlyDeparture, dp)
+func (s *botService) ProcessReturn(driverName string, passengers []string) string {
+	// Ekstrak nama driver dari baris "Driver: [nama]"
+	var driver string
+	for _, line := range passengers {
+		if strings.HasPrefix(line, "Driver:") {
+			driver = strings.TrimSpace(strings.TrimPrefix(line, "Driver:"))
+			break
 		}
 	}
 
-	err = s.storage.SaveReturn(driverName, passengers)
-	if err != nil {
-		log.Printf("[Service][ProcessReturn]Error saving return: %v", err)
-		return "", err
+	// Filter array passengers untuk hanya mengambil nama santri
+	var santriList []string
+	for _, line := range passengers {
+		if strings.HasPrefix(line, "-") {
+			santri := strings.TrimSpace(strings.TrimPrefix(line, "-"))
+			santriList = append(santriList, santri)
+		}
 	}
 
-	response := fmt.Sprintf("Kepulangan berhasil dicatat!\nDriver: %s\nJumlah Penumpang: %d\n\nBiaya per penumpang:\n",
-		driverName, len(passengers))
+	if err := s.storage.SaveReturn(driver, santriList); err != nil {
+		log.Printf("[Service][ProcessReturn]Error saving return for %s: %v", driver, err)
+	}
 
-	totalAmount := 0
-	for _, passenger := range passengers {
-		tripCount, err := s.storage.GetPassengerTripPrice(passenger)
-		if err != nil {
-			return "", err
-		}
+	var response strings.Builder
+	response.WriteString("✅ Kepulangan berhasil dicatat\n\n")
+	response.WriteString("Driver: " + driver + "\n")
+	response.WriteString("Daftar Santri:\n")
 
-		var price int
-		var note string
-		if tripCount > 1 {
-			price = constants.RoundTripPrice
-			note = "(PP)"
-			totalAmount += price
+	for _, passenger := range santriList {
+		hasDeparture, _ := s.storage.HasDepartureToday(passenger)
+		price := constants.SingleTripPrice
+		if hasDeparture {
+			price = constants.RoundTripPrice - constants.SingleTripPrice
+			response.WriteString(fmt.Sprintf("- %s (Rp %d - Pulang-Pergi)\n", passenger, constants.RoundTripPrice))
 		} else {
-			price = constants.SingleTripPrice
-			note = "(Sekali jalan)"
-			totalAmount += price
-		}
-
-		response += fmt.Sprintf("- %s: Rp %d %s\n", passenger, price, note)
-	}
-
-	if len(onlyDeparture) > 0 {
-		response += "\nPenumpang yang hanya berangkat:\n"
-		for _, passenger := range onlyDeparture {
-			response += fmt.Sprintf("- %s (hanya berangkat)\n", passenger)
+			response.WriteString(fmt.Sprintf("- %s (Rp %d - Sekali jalan)\n", passenger, price))
 		}
 	}
 
-	response += fmt.Sprintf("\nTotal pembayaran: Rp %d", totalAmount)
-	return response, nil
+	return response.String()
 }

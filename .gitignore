@@ -1,3 +1,5 @@
 .env
 database/*.txt
 database/*.db
+.cursorignore
+tmp/*

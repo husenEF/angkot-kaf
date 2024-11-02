@@ -1,0 +1,39 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Perintah untuk menjalankan build
+cmd = "go build -o ./tmp/main ."
+# Binary file yang dihasilkan
+bin = "tmp/main"
+# File yang akan di-watch untuk trigger rebuild
+include_ext = ["go", "tpl", "tmpl", "html"]
+# File yang akan diabaikan
+exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+# File tambahan yang akan diabaikan
+exclude_file = []
+# Delay sebelum rebuild setelah perubahan file (dalam milidetik)
+delay = 1000
+# Hentikan instance yang sedang berjalan sebelum memulai yang baru
+kill_delay = "0s"
+# Perintah untuk membersihkan binary sebelum build
+clean = true
+# Mengirim sinyal interrupt ke proses sebelum kill
+send_interrupt = false
+# Delay sebelum mengirim sinyal kill setelah interrupt
+stop_on_error = true
+
+[log]
+# Menampilkan log waktu
+time = false
+
+[color]
+# Warna untuk log build
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Hapus binary temporary saat keluar
+clean_on_exit = true
