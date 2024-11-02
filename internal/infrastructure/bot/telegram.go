@@ -120,12 +120,11 @@ func Start() error {
 		case messageText == "/start" || messageText == "/help":
 			response := "Selamat datang! Berikut adalah daftar perintah yang tersedia:\n" +
 				"/ping - Cek koneksi bot\n" +
-				"/santri - Tambah santri baru\n" +
-				"/daftarsantri - Lihat daftar santri\n" +
 				"/driver - Tambah driver baru\n" +
 				"/drivers - Lihat daftar driver\n" +
-				"/keberangkatan - Lihat format pencatatan keberangkatan\n" +
-				"/kepulangan - Lihat format pencatatan kepulangan"
+				"/antar - Lihat format pencatatan antar\n" +
+				"/jemput - Lihat format pencatatan jemput\n" +
+				"/laporan - Lihat laporan harian"
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
@@ -139,8 +138,42 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
+		case messageText == "/antar":
+			response := "Format pencatatan antar:\n\n" +
+				"antar\n" +
+				"Driver: [nama_driver]\n" +
+				"- [nama_santri_1]\n" +
+				"- [nama_santri_2]\n" +
+				"- [nama_santri_3]\n\n" +
+				"Contoh:\n" +
+				"antar\n" +
+				"Driver: Pak Ahmad\n" +
+				"- Santri Ali\n" +
+				"- Santri Umar\n" +
+				"- Santri Hasan"
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
+		case messageText == "/jemput":
+			response := "Format pencatatan jemput:\n\n" +
+				"jemput\n" +
+				"Driver: [nama_driver]\n" +
+				"- [nama_santri_1]\n" +
+				"- [nama_santri_2]\n" +
+				"- [nama_santri_3]\n\n" +
+				"Contoh:\n" +
+				"jemput\n" +
+				"Driver: Pak Ahmad\n" +
+				"- Santri Ali\n" +
+				"- Santri Umar\n" +
+				"- Santri Hasan"
+			msg := tgbotapi.NewMessage(chatID, response)
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
+			}
 		default:
-			if strings.HasPrefix(strings.ToLower(messageText), "keberangkatan") {
+			if strings.HasPrefix(strings.ToLower(messageText), "antar") {
 				lines := strings.Split(messageText, "\n")
 				response, err := botService.ProcessDeparture(lines[1], lines[2:])
 				if err != nil {
@@ -150,7 +183,7 @@ func Start() error {
 				if _, err := bot.Send(msg); err != nil {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
-			} else if strings.HasPrefix(strings.ToLower(messageText), "kepulangan") {
+			} else if strings.HasPrefix(strings.ToLower(messageText), "jemput") {
 				lines := strings.Split(messageText, "\n")
 				response, err := botService.ProcessReturn(lines[1], lines[2:])
 				if err != nil {
