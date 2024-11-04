@@ -8,6 +8,7 @@ import (
 	"github.com/robzlabz/angkot/internal/core/constants"
 	"github.com/robzlabz/angkot/internal/core/ports"
 	"github.com/robzlabz/angkot/pkg/logging"
+	"github.com/robzlabz/angkot/pkg/numbers"
 )
 
 type botService struct {
@@ -188,9 +189,9 @@ func (s *botService) ProcessReturn(driverName string, passengers []string, chatI
 		price := constants.SingleTripPrice
 		if hasDeparture {
 			price = constants.RoundTripPrice - constants.SingleTripPrice
-			response.WriteString(fmt.Sprintf("- %s (Rp %d - Pulang-Pergi)\n", passenger, constants.RoundTripPrice))
+			response.WriteString(fmt.Sprintf("- %s (Rp %s - Pulang-Pergi)\n", passenger, numbers.FormatNumber(int64(price))))
 		} else {
-			response.WriteString(fmt.Sprintf("- %s (Rp %d - Sekali jalan)\n", passenger, price))
+			response.WriteString(fmt.Sprintf("- %s (Rp %s - Sekali jalan)\n", passenger, numbers.FormatNumber(int64(price))))
 		}
 	}
 
@@ -246,7 +247,7 @@ func (s *botService) GetTodayReport(chatID int64) (string, error) {
 				tripType = "Pulang-Pergi"
 			}
 
-			response.WriteString(fmt.Sprintf("- %s (Rp %d - %s)\n", passenger, price, tripType))
+			response.WriteString(fmt.Sprintf("- %s (Rp %s - %s)\n", passenger, numbers.FormatNumber(int64(price)), tripType))
 			driverIncome += price
 			totalIncome += price
 		}
@@ -262,16 +263,16 @@ func (s *botService) GetTodayReport(chatID int64) (string, error) {
 			}
 
 			if isNewPassenger {
-				response.WriteString(fmt.Sprintf("- %s (Rp %d - Sekali Jalan)\n",
-					passenger, constants.SingleTripPrice))
+				response.WriteString(fmt.Sprintf("- %s (Rp %s - Sekali Jalan)\n",
+					passenger, numbers.FormatNumber(int64(constants.SingleTripPrice))))
 				driverIncome += constants.SingleTripPrice
 				totalIncome += constants.SingleTripPrice
 			}
 		}
 
-		response.WriteString(fmt.Sprintf("💰 Total Driver: Rp %d\n\n", driverIncome))
+		response.WriteString(fmt.Sprintf("💰 Total Driver: Rp %s\n\n", numbers.FormatNumber(int64(driverIncome))))
 	}
 
-	response.WriteString(fmt.Sprintf("💰 Total Pendapatan: Rp %d\n", totalIncome))
+	response.WriteString(fmt.Sprintf("💰 Total Pendapatan: Rp %s\n", numbers.FormatNumber(int64(totalIncome))))
 	return response.String(), nil
 }
