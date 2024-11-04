@@ -40,12 +40,16 @@ func initializeTables(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS drivers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			chat_id INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(name, chat_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS passengers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			chat_id INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(name, chat_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS departures (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +61,7 @@ func initializeTables(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS departure_passengers (
 			departure_id INTEGER,
 			passenger_name TEXT,
+			chat_id INTEGER NOT NULL,
 			price INTEGER NOT NULL DEFAULT 10000,
 			FOREIGN KEY(departure_id) REFERENCES departures(id)
 		)`,
@@ -70,6 +75,7 @@ func initializeTables(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS return_passengers (
 			return_id INTEGER,
 			passenger_name TEXT,
+			chat_id INTEGER NOT NULL,
 			price INTEGER NOT NULL DEFAULT 10000,
 			FOREIGN KEY(return_id) REFERENCES returns(id)
 		)`,
@@ -84,9 +90,9 @@ func initializeTables(db *sql.DB) error {
 	return nil
 }
 
-func (db *SQLiteDB) SaveDriver(name string) error {
-	query := "INSERT INTO drivers (name) VALUES (?)"
-	_, err := db.db.Exec(query, name)
+func (db *SQLiteDB) SaveDriver(name string, chatID int64) error {
+	query := "INSERT INTO drivers (name, chat_id) VALUES (?, ?)"
+	_, err := db.db.Exec(query, name, chatID)
 	if err != nil {
 		log.Printf("[Repository][SaveDriver]Error executing query: %v", err)
 		return err
@@ -94,9 +100,9 @@ func (db *SQLiteDB) SaveDriver(name string) error {
 	return nil
 }
 
-func (db *SQLiteDB) GetDrivers() ([]string, error) {
-	query := "SELECT name, created_at FROM drivers ORDER BY created_at DESC"
-	rows, err := db.db.Query(query)
+func (db *SQLiteDB) GetDrivers(chatID int64) ([]string, error) {
+	query := "SELECT name, created_at FROM drivers WHERE chat_id = ? ORDER BY created_at DESC"
+	rows, err := db.db.Query(query, chatID)
 	if err != nil {
 		log.Printf("[Repository][GetDrivers]Error querying drivers: %v", err)
 		return nil, err
@@ -115,22 +121,22 @@ func (db *SQLiteDB) GetDrivers() ([]string, error) {
 	return drivers, nil
 }
 
-func (db *SQLiteDB) IsDriverExists(name string) (bool, error) {
+func (db *SQLiteDB) IsDriverExists(name string, chatID int64) (bool, error) {
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM drivers WHERE name = ?)"
-	err := db.db.QueryRow(query, name).Scan(&exists)
+	query := "SELECT EXISTS(SELECT 1 FROM drivers WHERE name = ? AND chat_id = ?)"
+	err := db.db.QueryRow(query, name, chatID).Scan(&exists)
 	return exists, err
 }
 
-func (db *SQLiteDB) SavePassenger(name string) error {
-	query := "INSERT INTO passengers (name) VALUES (?)"
-	_, err := db.db.Exec(query, name)
+func (db *SQLiteDB) SavePassenger(name string, chatID int64) error {
+	query := "INSERT INTO passengers (name, chat_id) VALUES (?, ?)"
+	_, err := db.db.Exec(query, name, chatID)
 	return err
 }
 
-func (db *SQLiteDB) GetPassengers() ([]string, error) {
-	query := "SELECT name, created_at FROM passengers ORDER BY created_at DESC"
-	rows, err := db.db.Query(query)
+func (db *SQLiteDB) GetPassengers(chatID int64) ([]string, error) {
+	query := "SELECT name, created_at FROM passengers WHERE chat_id = ? ORDER BY created_at DESC"
+	rows, err := db.db.Query(query, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,32 +154,32 @@ func (db *SQLiteDB) GetPassengers() ([]string, error) {
 	return passengers, nil
 }
 
-func (db *SQLiteDB) HasDepartureToday(passengerName string) (bool, error) {
+func (db *SQLiteDB) HasDepartureToday(passengerName string, chatID int64) (bool, error) {
 	query := `
 		SELECT EXISTS (
 			SELECT 1 FROM departure_passengers dp
 			JOIN departures d ON dp.departure_id = d.id
-			WHERE dp.passenger_name = ? AND date(d.created_at) = date('now')
+			WHERE dp.passenger_name = ? AND dp.chat_id = ? AND date(d.created_at) = date('now')
 		)`
 	var exists bool
-	err := db.db.QueryRow(query, passengerName).Scan(&exists)
+	err := db.db.QueryRow(query, passengerName, chatID).Scan(&exists)
 	return exists, err
 }
 
-func (db *SQLiteDB) GetPassengerTripPrice(passengerName string) (int, error) {
+func (db *SQLiteDB) GetPassengerTripPrice(passengerName string, chatID int64) (int, error) {
 	query := `
 		SELECT
 			(SELECT COUNT(*) FROM departure_passengers dp
 			 JOIN departures d ON dp.departure_id = d.id
-			 WHERE dp.passenger_name = ? AND date(d.created_at) = date('now'))
+			 WHERE dp.passenger_name = ? AND dp.chat_id = ? AND date(d.created_at) = date('now'))
 			+
 			(SELECT COUNT(*) FROM return_passengers rp
 			 JOIN returns r ON rp.return_id = r.id
-			 WHERE rp.passenger_name = ? AND date(r.created_at) = date('now'))
+			 WHERE rp.passenger_name = ? AND rp.chat_id = ? AND date(r.created_at) = date('now'))
 		AS trip_count`
 
 	var tripCount int
-	err := db.db.QueryRow(query, passengerName, passengerName).Scan(&tripCount)
+	err := db.db.QueryRow(query, passengerName, chatID, passengerName, chatID).Scan(&tripCount)
 	if err != nil {
 		return 0, err
 	}
@@ -181,7 +187,7 @@ func (db *SQLiteDB) GetPassengerTripPrice(passengerName string) (int, error) {
 	return tripCount, nil
 }
 
-func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error {
+func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string, chatID int64) error {
 	tx, err := db.db.Begin()
 	if err != nil {
 		log.Printf("[Repository][SaveDeparture]Error beginning transaction: %v", err)
@@ -218,7 +224,7 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 
 		// Add new passengers to existing departure
 		for _, passenger := range passengers {
-			tripCount, err := db.GetPassengerTripPrice(passenger)
+			tripCount, err := db.GetPassengerTripPrice(passenger, chatID)
 			if err != nil {
 				return err
 			}
@@ -231,8 +237,8 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 				price = constants.RoundTripPrice - constants.SingleTripPrice
 			}
 
-			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name, price) VALUES (?, ?, ?)",
-				existingDepartureID, passenger, price)
+			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name, chat_id, price) VALUES (?, ?, ?, ?)",
+				existingDepartureID, passenger, chatID, price)
 			if err != nil {
 				return err
 			}
@@ -251,7 +257,7 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 
 		// Add passengers for new departure
 		for _, passenger := range passengers {
-			tripCount, err := db.GetPassengerTripPrice(passenger)
+			tripCount, err := db.GetPassengerTripPrice(passenger, chatID)
 			if err != nil {
 				return err
 			}
@@ -263,8 +269,8 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 				price = constants.RoundTripPrice - constants.SingleTripPrice
 			}
 
-			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name, price) VALUES (?, ?, ?)",
-				departureID, passenger, price)
+			_, err = tx.Exec("INSERT INTO departure_passengers (departure_id, passenger_name, chat_id, price) VALUES (?, ?, ?, ?)",
+				departureID, passenger, chatID, price)
 			if err != nil {
 				return err
 			}
@@ -278,7 +284,7 @@ func (db *SQLiteDB) SaveDeparture(driverName string, passengers []string) error 
 	return nil
 }
 
-func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
+func (db *SQLiteDB) SaveReturn(driverName string, passengers []string, chatID int64) error {
 	tx, err := db.db.Begin()
 	if err != nil {
 		log.Printf("[Repository][SaveReturn]Error beginning transaction: %v", err)
@@ -315,7 +321,7 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 
 		// Add new passengers to existing return
 		for _, passenger := range passengers {
-			tripCount, err := db.GetPassengerTripPrice(passenger)
+			tripCount, err := db.GetPassengerTripPrice(passenger, chatID)
 			if err != nil {
 				return err
 			}
@@ -327,8 +333,8 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 				price = constants.RoundTripPrice - constants.SingleTripPrice
 			}
 
-			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name, price) VALUES (?, ?, ?)",
-				existingReturnID, passenger, price)
+			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name, chat_id, price) VALUES (?, ?, ?, ?)",
+				existingReturnID, passenger, chatID, price)
 			if err != nil {
 				return err
 			}
@@ -347,7 +353,7 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 
 		// Add passengers for new return
 		for _, passenger := range passengers {
-			tripCount, err := db.GetPassengerTripPrice(passenger)
+			tripCount, err := db.GetPassengerTripPrice(passenger, chatID)
 			if err != nil {
 				return err
 			}
@@ -359,8 +365,8 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 				price = constants.RoundTripPrice - constants.SingleTripPrice
 			}
 
-			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name, price) VALUES (?, ?, ?)",
-				returnID, passenger, price)
+			_, err = tx.Exec("INSERT INTO return_passengers (return_id, passenger_name, chat_id, price) VALUES (?, ?, ?, ?)",
+				returnID, passenger, chatID, price)
 			if err != nil {
 				return err
 			}
@@ -374,15 +380,15 @@ func (db *SQLiteDB) SaveReturn(driverName string, passengers []string) error {
 	return nil
 }
 
-func (db *SQLiteDB) GetDeparturePassengers(driverName string) ([]string, error) {
+func (db *SQLiteDB) GetDeparturePassengers(driverName string, chatID int64) ([]string, error) {
 	query := `
         SELECT DISTINCT dp.passenger_name
         FROM departure_passengers dp
         JOIN departures d ON dp.departure_id = d.id
         JOIN drivers dr ON d.driver_id = dr.id
-        WHERE dr.name = ? AND date(d.created_at) = date('now')
+        WHERE dr.name = ? AND dp.chat_id = ? AND date(d.created_at) = date('now')
     `
-	rows, err := db.db.Query(query, driverName)
+	rows, err := db.db.Query(query, driverName, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -399,16 +405,16 @@ func (db *SQLiteDB) GetDeparturePassengers(driverName string) ([]string, error) 
 	return passengers, nil
 }
 
-func (db *SQLiteDB) GetTodayDrivers() ([]string, error) {
+func (db *SQLiteDB) GetTodayDrivers(chatID int64) ([]string, error) {
 	query := `
 		SELECT DISTINCT d.name
 		FROM drivers d
 		LEFT JOIN departures dep ON d.id = dep.driver_id
 		LEFT JOIN returns ret ON d.id = ret.driver_id
-		WHERE date(dep.created_at) = date('now')
+		WHERE d.chat_id = ? AND date(dep.created_at) = date('now')
 		   OR date(ret.created_at) = date('now')
 	`
-	rows, err := db.db.Query(query)
+	rows, err := db.db.Query(query, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -425,15 +431,15 @@ func (db *SQLiteDB) GetTodayDrivers() ([]string, error) {
 	return drivers, nil
 }
 
-func (db *SQLiteDB) GetReturnPassengers(driverName string) ([]string, error) {
+func (db *SQLiteDB) GetReturnPassengers(driverName string, chatID int64) ([]string, error) {
 	query := `
 		SELECT DISTINCT rp.passenger_name
 		FROM return_passengers rp
 		JOIN returns r ON rp.return_id = r.id
 		JOIN drivers d ON r.driver_id = d.id
-		WHERE d.name = ? AND date(r.created_at) = date('now')
+		WHERE d.name = ? AND rp.chat_id = ? AND date(r.created_at) = date('now')
 	`
-	rows, err := db.db.Query(query, driverName)
+	rows, err := db.db.Query(query, driverName, chatID)
 	if err != nil {
 		return nil, err
 	}

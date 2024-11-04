@@ -33,8 +33,8 @@ func (s *botService) HandlePassenger(chatID int64) string {
 	return "Siapa yang akan menjadi penumpang?"
 }
 
-func (s *botService) AddPassenger(name string) error {
-	if err := s.storage.SavePassenger(name); err != nil {
+func (s *botService) AddPassenger(name string, chatID int64) error {
+	if err := s.storage.SavePassenger(name, chatID); err != nil {
 		log.Printf("[Service][AddPassenger]Error failed to save passenger: %v", err)
 		return err
 	}
@@ -50,8 +50,8 @@ func (s *botService) ClearWaitingStatus(chatID int64) {
 	delete(s.waitingForDriverName, chatID)
 }
 
-func (s *botService) GetPassengerList() (string, error) {
-	passengers, err := s.storage.GetPassengers()
+func (s *botService) GetPassengerList(chatID int64) (string, error) {
+	passengers, err := s.storage.GetPassengers(chatID)
 	if err != nil {
 		log.Printf("[Service][GetPassengerList]Error failed to get passengers: %v", err)
 		return "", err
@@ -71,16 +71,16 @@ func (s *botService) HandleDriver(chatID int64) string {
 	return "Siapa yang akan menjadi driver?"
 }
 
-func (s *botService) AddDriver(name string) error {
-	if err := s.storage.SaveDriver(name); err != nil {
+func (s *botService) AddDriver(name string, chatID int64) error {
+	if err := s.storage.SaveDriver(name, chatID); err != nil {
 		log.Printf("[Service][AddDriver]Error failed to save driver: %v", err)
 		return err
 	}
 	return nil
 }
 
-func (s *botService) GetDriverList() (string, error) {
-	drivers, err := s.storage.GetDrivers()
+func (s *botService) GetDriverList(chatID int64) (string, error) {
+	drivers, err := s.storage.GetDrivers(chatID)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +98,7 @@ func (s *botService) IsWaitingForDriverName(chatID int64) bool {
 	return s.waitingForDriverName[chatID]
 }
 
-func (s *botService) ProcessDeparture(driverName string, passengers []string) (string, error) {
+func (s *botService) ProcessDeparture(driverName string, passengers []string, chatID int64) (string, error) {
 	logging.Info(fmt.Sprintf("[Service][ProcessDeparture]Processing departure for %s with passengers: %v", driverName, passengers))
 	// Ekstrak nama driver dari baris "Driver: [nama]"
 	var driver string
@@ -123,7 +123,7 @@ func (s *botService) ProcessDeparture(driverName string, passengers []string) (s
 		return "", fmt.Errorf("daftar santri tidak ditemukan")
 	}
 
-	if err := s.storage.SaveDeparture(driver, santriList); err != nil {
+	if err := s.storage.SaveDeparture(driver, santriList, chatID); err != nil {
 		log.Printf("[Service][ProcessDeparture]Error saving departure for %s: %v", driver, err)
 		return "", fmt.Errorf("gagal menyimpan data keberangkatan: %v", err)
 	}
@@ -134,18 +134,13 @@ func (s *botService) ProcessDeparture(driverName string, passengers []string) (s
 	response.WriteString("Daftar Santri:\n")
 
 	for _, passenger := range santriList {
-		hasDeparture, _ := s.storage.HasDepartureToday(passenger)
-		price := constants.SingleTripPrice
-		if hasDeparture {
-			price = constants.RoundTripPrice
-		}
-		response.WriteString(fmt.Sprintf("- %s (Rp %d)\n", passenger, price))
+		response.WriteString(fmt.Sprintf("- %s\n", passenger))
 	}
 
 	return response.String(), nil
 }
 
-func (s *botService) ProcessReturn(driverName string, passengers []string) (string, error) {
+func (s *botService) ProcessReturn(driverName string, passengers []string, chatID int64) (string, error) {
 	// Ekstrak nama driver dari baris "Driver: [nama]"
 	var driver string
 	if strings.HasPrefix(driverName, "Driver:") {
@@ -157,7 +152,7 @@ func (s *botService) ProcessReturn(driverName string, passengers []string) (stri
 	}
 
 	// find driver name in database
-	exists, err := s.storage.IsDriverExists(driver)
+	exists, err := s.storage.IsDriverExists(driver, chatID)
 	if err != nil {
 		return "", fmt.Errorf("gagal memeriksa keberadaan driver: %v", err)
 	}
@@ -178,7 +173,7 @@ func (s *botService) ProcessReturn(driverName string, passengers []string) (stri
 		return "", fmt.Errorf("daftar santri tidak ditemukan")
 	}
 
-	if err := s.storage.SaveReturn(driver, santriList); err != nil {
+	if err := s.storage.SaveReturn(driver, santriList, chatID); err != nil {
 		log.Printf("[Service][ProcessReturn]Error saving return for %s: %v", driver, err)
 		return "", fmt.Errorf("gagal menyimpan data kepulangan: %v", err)
 	}
@@ -189,7 +184,7 @@ func (s *botService) ProcessReturn(driverName string, passengers []string) (stri
 	response.WriteString("Daftar Santri:\n")
 
 	for _, passenger := range santriList {
-		hasDeparture, _ := s.storage.HasDepartureToday(passenger)
+		hasDeparture, _ := s.storage.HasDepartureToday(passenger, chatID)
 		price := constants.SingleTripPrice
 		if hasDeparture {
 			price = constants.RoundTripPrice - constants.SingleTripPrice
@@ -202,13 +197,13 @@ func (s *botService) ProcessReturn(driverName string, passengers []string) (stri
 	return response.String(), nil
 }
 
-func (s *botService) GetTodayReport() (string, error) {
+func (s *botService) GetTodayReport(chatID int64) (string, error) {
 	var response strings.Builder
 	response.WriteString("📊 Laporan Hari Ini\n")
 	response.WriteString("================\n\n")
 
 	// Ambil semua driver yang beroperasi hari ini
-	drivers, err := s.storage.GetTodayDrivers()
+	drivers, err := s.storage.GetTodayDrivers(chatID)
 	if err != nil {
 		log.Printf("[Service][GetTodayReport]Error getting today's drivers: %v", err)
 		return "", fmt.Errorf("gagal membuat laporan: %v", err)
@@ -219,13 +214,13 @@ func (s *botService) GetTodayReport() (string, error) {
 		response.WriteString(fmt.Sprintf("🚗 Driver: %s\n", driver))
 
 		// Ambil penumpang keberangkatan
-		departurePassengers, err := s.storage.GetDeparturePassengers(driver)
+		departurePassengers, err := s.storage.GetDeparturePassengers(driver, chatID)
 		if err != nil {
 			continue
 		}
 
 		// Ambil penumpang kepulangan
-		returnPassengers, err := s.storage.GetReturnPassengers(driver)
+		returnPassengers, err := s.storage.GetReturnPassengers(driver, chatID)
 		if err != nil {
 			continue
 		}

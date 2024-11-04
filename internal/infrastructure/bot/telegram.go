@@ -60,7 +60,7 @@ func Start() error {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
 		case messageText == "/daftarsantri":
-			response, err := botService.GetPassengerList()
+			response, err := botService.GetPassengerList(chatID)
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membaca data santri"
 			}
@@ -75,7 +75,7 @@ func Start() error {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
 		case messageText == "/drivers":
-			response, err := botService.GetDriverList()
+			response, err := botService.GetDriverList(chatID)
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membaca data driver"
 			}
@@ -130,7 +130,7 @@ func Start() error {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
 		case messageText == "/laporan":
-			response, err := botService.GetTodayReport()
+			response, err := botService.GetTodayReport(chatID)
 			if err != nil {
 				response = "Maaf, terjadi kesalahan saat membuat laporan"
 			}
@@ -175,7 +175,7 @@ func Start() error {
 		default:
 			if strings.HasPrefix(strings.ToLower(messageText), "antar") {
 				lines := strings.Split(messageText, "\n")
-				response, err := botService.ProcessDeparture(lines[1], lines[2:])
+				response, err := botService.ProcessDeparture(lines[1], lines[2:], chatID)
 				if err != nil {
 					response = err.Error()
 				}
@@ -185,7 +185,7 @@ func Start() error {
 				}
 			} else if strings.HasPrefix(strings.ToLower(messageText), "jemput") {
 				lines := strings.Split(messageText, "\n")
-				response, err := botService.ProcessReturn(lines[1], lines[2:])
+				response, err := botService.ProcessReturn(lines[1], lines[2:], chatID)
 				if err != nil {
 					response = err.Error()
 				}
@@ -194,7 +194,7 @@ func Start() error {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
 			} else if botService.IsWaitingForPassengerName(chatID) {
-				err := botService.AddPassenger(messageText)
+				err := botService.AddPassenger(messageText, chatID)
 				var response string
 				if err != nil {
 					response = "Maaf, terjadi kesalahan saat menyimpan data penumpang"
@@ -207,7 +207,7 @@ func Start() error {
 					log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 				}
 			} else if botService.IsWaitingForDriverName(chatID) {
-				err := botService.AddDriver(messageText)
+				err := botService.AddDriver(messageText, chatID)
 				var response string
 				if err != nil {
 					response = "Maaf, terjadi kesalahan saat menyimpan data driver"

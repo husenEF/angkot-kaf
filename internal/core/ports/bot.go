@@ -3,15 +3,15 @@ package ports
 type BotService interface {
 	HandlePing() string
 	HandlePassenger(chatID int64) string
-	AddPassenger(name string) error
+	AddPassenger(name string, chatID int64) error
 	IsWaitingForPassengerName(chatID int64) bool
 	ClearWaitingStatus(chatID int64)
-	GetPassengerList() (string, error)
+	GetPassengerList(chatID int64) (string, error)
 	HandleDriver(chatID int64) string
-	AddDriver(name string) error
-	GetDriverList() (string, error)
+	AddDriver(name string, chatID int64) error
+	GetDriverList(chatID int64) (string, error)
 	IsWaitingForDriverName(chatID int64) bool
-	ProcessDeparture(string, []string) (string, error)
-	ProcessReturn(string, []string) (string, error)
-	GetTodayReport() (string, error)
+	ProcessDeparture(driverName string, passengers []string, chatID int64) (string, error)
+	ProcessReturn(driverName string, passengers []string, chatID int64) (string, error)
+	GetTodayReport(chatID int64) (string, error)
 }
