@@ -84,15 +84,15 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "/keberangkatan":
-			response := "Format pencatatan keberangkatan:\n\n" +
-				"keberangkatan\n" +
+		case messageText == "/antar":
+			response := "Format pencatatan antar:\n\n" +
+				"antar\n" +
 				"Driver: [nama_driver]\n" +
 				"- [nama_santri_1]\n" +
 				"- [nama_santri_2]\n" +
 				"- [nama_santri_3]\n\n" +
 				"Contoh:\n" +
-				"keberangkatan\n" +
+				"antar\n" +
 				"Driver: Pak Ahmad\n" +
 				"- Santri Ali\n" +
 				"- Santri Umar\n" +
@@ -101,15 +101,15 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "/kepulangan":
+		case messageText == "/jemput":
 			response := "Format pencatatan kepulangan:\n\n" +
-				"kepulangan\n" +
+				"jemput\n" +
 				"Driver: [nama_driver]\n" +
 				"- [nama_santri_1]\n" +
 				"- [nama_santri_2]\n" +
 				"- [nama_santri_3]\n\n" +
 				"Contoh:\n" +
-				"kepulangan\n" +
+				"jemput\n" +
 				"Driver: Pak Ahmad\n" +
 				"- Santri Ali\n" +
 				"- Santri Umar\n" +
