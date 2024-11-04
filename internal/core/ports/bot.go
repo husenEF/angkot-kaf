@@ -14,4 +14,5 @@ type BotService interface {
 	ProcessDeparture(driverName string, passengers []string, chatID int64) (string, error)
 	ProcessReturn(driverName string, passengers []string, chatID int64) (string, error)
 	GetTodayReport(chatID int64) (string, error)
+	GetReportByDate(chatID int64, date string) (string, error)
 }

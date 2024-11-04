@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/robzlabz/angkot/internal/core/constants"
 	"github.com/robzlabz/angkot/internal/core/ports"
@@ -247,7 +248,10 @@ func (s *botService) GetTodayReport(chatID int64) (string, error) {
 				tripType = "Pulang-Pergi"
 			}
 
-			response.WriteString(fmt.Sprintf("- %s (Rp %s - %s)\n", passenger, numbers.FormatNumber(int64(price)), tripType))
+			response.WriteString(fmt.Sprintf("- %s (Rp %s - %s)\n",
+				passenger,
+				numbers.FormatNumber(int64(price)),
+				tripType))
 			driverIncome += price
 			totalIncome += price
 		}
@@ -264,7 +268,96 @@ func (s *botService) GetTodayReport(chatID int64) (string, error) {
 
 			if isNewPassenger {
 				response.WriteString(fmt.Sprintf("- %s (Rp %s - Sekali Jalan)\n",
-					passenger, numbers.FormatNumber(int64(constants.SingleTripPrice))))
+					passenger,
+					numbers.FormatNumber(int64(constants.SingleTripPrice))))
+				driverIncome += constants.SingleTripPrice
+				totalIncome += constants.SingleTripPrice
+			}
+		}
+
+		response.WriteString(fmt.Sprintf("💰 Total Driver: Rp %s\n\n", numbers.FormatNumber(int64(driverIncome))))
+	}
+
+	response.WriteString(fmt.Sprintf("💰 Total Pendapatan: Rp %s\n", numbers.FormatNumber(int64(totalIncome))))
+	return response.String(), nil
+}
+
+func (s *botService) GetReportByDate(chatID int64, date string) (string, error) {
+	// Validasi format tanggal
+	_, err := time.Parse("02-01-2006", date)
+	if err != nil {
+		return "", fmt.Errorf("format tanggal tidak valid, gunakan format dd-mm-yyyy")
+	}
+
+	var response strings.Builder
+	response.WriteString(fmt.Sprintf("📊 Laporan Tanggal %s\n", date))
+	response.WriteString("================\n\n")
+
+	// Konversi format tanggal untuk database (yyyy-mm-dd)
+	t, _ := time.Parse("02-01-2006", date)
+	dbDate := t.Format("2006-01-02")
+
+	drivers, err := s.storage.GetDriversByDate(chatID, dbDate)
+	if err != nil {
+		return "", fmt.Errorf("gagal membuat laporan: %v", err)
+	}
+
+	totalIncome := 0
+	for _, driver := range drivers {
+		response.WriteString(fmt.Sprintf("🚗 Driver: %s\n", driver))
+
+		departurePassengers, err := s.storage.GetDeparturePassengersByDate(driver, chatID, dbDate)
+		if err != nil {
+			continue
+		}
+
+		returnPassengers, err := s.storage.GetReturnPassengersByDate(driver, chatID, dbDate)
+		if err != nil {
+			continue
+		}
+
+		driverIncome := 0
+		response.WriteString("Penumpang:\n")
+
+		// Proses penumpang keberangkatan
+		for _, passenger := range departurePassengers {
+			hasTwoTrips := false
+			for _, returnPass := range returnPassengers {
+				if returnPass == passenger {
+					hasTwoTrips = true
+					break
+				}
+			}
+
+			price := constants.SingleTripPrice
+			tripType := "Sekali Jalan"
+			if hasTwoTrips {
+				price = constants.RoundTripPrice
+				tripType = "Pulang-Pergi"
+			}
+
+			response.WriteString(fmt.Sprintf("- %s (Rp %s - %s)\n",
+				passenger,
+				numbers.FormatNumber(int64(price)),
+				tripType))
+			driverIncome += price
+			totalIncome += price
+		}
+
+		// Tambahkan penumpang kepulangan yang belum tercatat
+		for _, passenger := range returnPassengers {
+			isNewPassenger := true
+			for _, depPass := range departurePassengers {
+				if depPass == passenger {
+					isNewPassenger = false
+					break
+				}
+			}
+
+			if isNewPassenger {
+				response.WriteString(fmt.Sprintf("- %s (Rp %s - Sekali Jalan)\n",
+					passenger,
+					numbers.FormatNumber(int64(constants.SingleTripPrice))))
 				driverIncome += constants.SingleTripPrice
 				totalIncome += constants.SingleTripPrice
 			}

@@ -455,3 +455,79 @@ func (db *SQLiteDB) GetReturnPassengers(driverName string, chatID int64) ([]stri
 	}
 	return passengers, nil
 }
+
+func (db *SQLiteDB) GetDriversByDate(chatID int64, date string) ([]string, error) {
+	query := `
+		SELECT DISTINCT d.name
+		FROM drivers d
+		LEFT JOIN departures dep ON d.id = dep.driver_id
+		LEFT JOIN returns ret ON d.id = ret.driver_id
+		WHERE d.chat_id = ? AND (date(dep.created_at) = date(?)
+			OR date(ret.created_at) = date(?))
+	`
+	rows, err := db.db.Query(query, chatID, date, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var drivers []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		drivers = append(drivers, name)
+	}
+	return drivers, nil
+}
+
+func (db *SQLiteDB) GetDeparturePassengersByDate(driverName string, chatID int64, date string) ([]string, error) {
+	query := `
+		SELECT DISTINCT dp.passenger_name
+		FROM departure_passengers dp
+		JOIN departures d ON dp.departure_id = d.id
+		JOIN drivers dr ON d.driver_id = dr.id
+		WHERE dr.name = ? AND dp.chat_id = ? AND date(d.created_at) = date(?)
+	`
+	rows, err := db.db.Query(query, driverName, chatID, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var passengers []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		passengers = append(passengers, name)
+	}
+	return passengers, nil
+}
+
+func (db *SQLiteDB) GetReturnPassengersByDate(driverName string, chatID int64, date string) ([]string, error) {
+	query := `
+		SELECT DISTINCT rp.passenger_name
+		FROM return_passengers rp
+		JOIN returns r ON rp.return_id = r.id
+		JOIN drivers d ON r.driver_id = d.id
+		WHERE d.name = ? AND rp.chat_id = ? AND date(r.created_at) = date(?)
+	`
+	rows, err := db.db.Query(query, driverName, chatID, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var passengers []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		passengers = append(passengers, name)
+	}
+	return passengers, nil
+}

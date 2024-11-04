@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/robzlabz/angkot/internal/core/services"
@@ -129,10 +130,25 @@ func Start() error {
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("[Adapter][MessageHandler]Error sending message: %v", err)
 			}
-		case messageText == "/laporan":
-			response, err := botService.GetTodayReport(chatID)
+		case strings.HasPrefix(messageText, "/laporan"):
+			parts := strings.Fields(messageText)
+			var response string
+			var err error
+
+			if len(parts) == 1 {
+				// Tanpa tanggal, gunakan hari ini
+				response, err = botService.GetTodayReport(chatID)
+			} else if parts[1] == "kemarin" {
+				// Laporan kemarin
+				yesterday := time.Now().AddDate(0, 0, -1).Format("02-01-2006")
+				response, err = botService.GetReportByDate(chatID, yesterday)
+			} else {
+				// Format tanggal spesifik
+				response, err = botService.GetReportByDate(chatID, parts[1])
+			}
+
 			if err != nil {
-				response = "Maaf, terjadi kesalahan saat membuat laporan"
+				response = err.Error()
 			}
 			msg := tgbotapi.NewMessage(chatID, response)
 			if _, err := bot.Send(msg); err != nil {

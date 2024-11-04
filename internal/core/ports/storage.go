@@ -13,4 +13,7 @@ type Storage interface {
 	HasDepartureToday(passengerName string, chatID int64) (bool, error)
 	GetTodayDrivers(chatID int64) ([]string, error)
 	GetReturnPassengers(driverName string, chatID int64) ([]string, error)
+	GetDriversByDate(chatID int64, date string) ([]string, error)
+	GetDeparturePassengersByDate(driverName string, chatID int64, date string) ([]string, error)
+	GetReturnPassengersByDate(driverName string, chatID int64, date string) ([]string, error)
 }
