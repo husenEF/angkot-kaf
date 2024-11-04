@@ -189,7 +189,7 @@ func (s *botService) ProcessReturn(driverName string, passengers []string, chatI
 		hasDeparture, _ := s.storage.HasDepartureToday(passenger, chatID)
 		price := constants.SingleTripPrice
 		if hasDeparture {
-			price = constants.RoundTripPrice - constants.SingleTripPrice
+			price = constants.RoundTripPrice
 			response.WriteString(fmt.Sprintf("- %s (Rp %s - Pulang-Pergi)\n", passenger, numbers.FormatNumber(int64(price))))
 		} else {
 			response.WriteString(fmt.Sprintf("- %s (Rp %s - Sekali jalan)\n", passenger, numbers.FormatNumber(int64(price))))
