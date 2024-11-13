@@ -1,8 +1,11 @@
 import * as dotenv from "dotenv";
+import { join } from "path";
 import { z } from "zod";
 
-// Load environment variables dari file .env
-dotenv.config();
+// Load environment variables dari file .env dengan path yang benar
+dotenv.config({
+    path: join(process.cwd(), '.env')
+});
 
 // Definisikan schema untuk validasi environment variables
 const envSchema = z.object({
