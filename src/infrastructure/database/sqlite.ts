@@ -121,14 +121,14 @@ export class SQLiteDB implements Storage {
 
     async getPassengers(chatId: number): Promise<string[]> {
         return new Promise<string[]>((resolve, reject) => {
-            this.db.all<PassengerRow>(
+            this.db.query<PassengerRow>(
                 "SELECT name FROM passengers WHERE chat_id = ? ORDER BY name",
                 [chatId],
                 (err: Error | null, rows: PassengerRow[]) => {
                     if (err) reject(err);
                     else resolve(rows.map(row => row.name));
                 }
-            );
+            ).all();
         });
     }
 
