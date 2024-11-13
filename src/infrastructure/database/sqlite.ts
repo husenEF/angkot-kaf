@@ -277,4 +277,12 @@ export class SQLiteDB implements Storage {
             );
         });
     }
+
+    async deleteDepartureToday(driverName: string, chatId: number): Promise<void> {
+        this.db.run("DELETE FROM trips WHERE driver_name = ? AND chat_id = ? AND type = 'departure' AND date(created_at) = date('now')", [driverName, chatId]);
+    }
+
+    async deleteReturnToday(driverName: string, chatId: number): Promise<void> {
+        this.db.run("DELETE FROM trips WHERE driver_name = ? AND chat_id = ? AND type = 'return' AND date(created_at) = date('now')", [driverName, chatId]);
+    }
 }

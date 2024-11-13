@@ -74,12 +74,16 @@ export class BotServiceImpl implements BotService {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
+        // Hapus data departure sebelumnya untuk driver ini pada hari yang sama
+        await this.storage.deleteDepartureToday(driverName, chatId);
+
         const totalAmount = SINGLE_TRIP_PRICE * passengers.length;
         let priceDetails = "Detail Pembayaran:\n";
         passengers.forEach(passenger => {
             priceDetails += `${passenger}: Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')}\n`;
         });
 
+        // Simpan data departure yang baru
         await this.storage.saveDeparture(driverName, passengers, chatId);
 
         return `Keberangkatan berhasil dicatat\n\n${priceDetails}\nTotal untuk driver: Rp ${totalAmount.toLocaleString('id-ID')}`;
@@ -95,6 +99,15 @@ export class BotServiceImpl implements BotService {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
+        // Hapus data return sebelumnya untuk driver ini pada hari yang sama
+        await this.storage.deleteReturnToday(driverName, chatId);
+
+        // Dapatkan daftar penumpang yang berangkat hari ini
+        const departurePassengers = await this.storage.getDeparturePassengers(driverName, chatId);
+
+        // Identifikasi penumpang yang berangkat tapi tidak pulang
+        const notReturningPassengers = departurePassengers.filter(p => !passengers.includes(p));
+
         // Calculate prices for each passenger
         let totalAmount = 0;
         let priceDetails = "Detail Pembayaran:\n";
@@ -103,9 +116,18 @@ export class BotServiceImpl implements BotService {
             const hasDepartureToday = await this.storage.hasDepartureToday(passenger, chatId);
             const price = hasDepartureToday ? ROUND_TRIP_PRICE - SINGLE_TRIP_PRICE : SINGLE_TRIP_PRICE;
             totalAmount += price;
-            priceDetails += `${passenger}: Rp ${price.toLocaleString('id-ID')}\n`;
+            priceDetails += `${passenger}: Rp ${price.toLocaleString('id-ID')}${hasDepartureToday ? ' (Pulang PP)' : ''}\n`;
         }
 
+        // Tambahkan informasi penumpang yang tidak ikut pulang
+        if (notReturningPassengers.length > 0) {
+            priceDetails += "\nTidak Ikut Pulang:\n";
+            notReturningPassengers.forEach(passenger => {
+                priceDetails += `- ${passenger}\n`;
+            });
+        }
+
+        // Simpan data return yang baru
         await this.storage.saveReturn(driverName, passengers, chatId);
 
         return `Kepulangan berhasil dicatat\n\n${priceDetails}\nTotal untuk driver: Rp ${totalAmount.toLocaleString('id-ID')}`;

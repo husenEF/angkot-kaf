@@ -14,4 +14,6 @@ export interface Storage {
     getDriversByDate(chatId: number, date: string): Promise<string[]>;
     getDeparturePassengersByDate(driverName: string, chatId: number, date: string): Promise<string[]>;
     getReturnPassengersByDate(driverName: string, chatId: number, date: string): Promise<string[]>;
+    deleteDepartureToday(driverName: string, chatId: number): Promise<void>;
+    deleteReturnToday(driverName: string, chatId: number): Promise<void>;
 }
