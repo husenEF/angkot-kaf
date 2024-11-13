@@ -139,54 +139,67 @@ export class BotServiceImpl implements BotService {
             return "Belum ada perjalanan hari ini";
         }
 
-        let report = "Laporan Hari Ini:\n\n";
+        let report = "Laporan\n\n";
         let totalAllDrivers = 0;
 
         for (const driver of drivers) {
-            const departurePassengers = await this.storage.getDeparturePassengers(
-                driver,
-                chatId
-            );
-            const returnPassengers = await this.storage.getReturnPassengers(
-                driver,
-                chatId
-            );
+            const departurePassengers = await this.storage.getDeparturePassengers(driver, chatId);
+            const returnPassengers = await this.storage.getReturnPassengers(driver, chatId);
 
             let driverTotal = 0;
-            let tripDetails = "";
+            let roundTripPassengers = [];
+            let departureOnlyPassengers = [];
+            let returnOnlyPassengers = [];
 
-            // Hitung biaya keberangkatan
-            if (departurePassengers.length > 0) {
-                const departureTotal = SINGLE_TRIP_PRICE * departurePassengers.length;
-                driverTotal += departureTotal;
-                tripDetails += "Berangkat:\n";
-                departurePassengers.forEach(passenger => {
-                    tripDetails += `- ${passenger}: Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')}\n`;
-                });
-            }
-
-            // Hitung biaya kepulangan
-            if (returnPassengers.length > 0) {
-                tripDetails += "\nPulang:\n";
-                for (const passenger of returnPassengers) {
-                    const hasDepartureToday = departurePassengers.includes(passenger);
-                    const returnPrice = hasDepartureToday ?
-                        ROUND_TRIP_PRICE - SINGLE_TRIP_PRICE :
-                        SINGLE_TRIP_PRICE;
-                    driverTotal += returnPrice;
-                    tripDetails += `- ${passenger}: Rp ${returnPrice.toLocaleString('id-ID')}${hasDepartureToday ? ' (Pulang PP)' : ''}\n`;
+            // Kategorikan penumpang
+            for (const passenger of departurePassengers) {
+                if (returnPassengers.includes(passenger)) {
+                    roundTripPassengers.push(passenger);
+                    driverTotal += ROUND_TRIP_PRICE;
+                } else {
+                    departureOnlyPassengers.push(passenger);
+                    driverTotal += SINGLE_TRIP_PRICE;
                 }
             }
 
-            // Tambahkan ke total keseluruhan
-            totalAllDrivers += driverTotal;
+            // Cari penumpang yang hanya pulang
+            returnOnlyPassengers = returnPassengers.filter(p => !departurePassengers.includes(p));
+            driverTotal += returnOnlyPassengers.length * SINGLE_TRIP_PRICE;
 
-            report += `Supir: ${driver}\n`;
-            report += tripDetails;
-            report += `Total untuk ${driver}: Rp ${driverTotal.toLocaleString('id-ID')}\n\n`;
+            report += `Driver: ${driver}\n\n`;
+
+            // Pulang Pergi
+            if (roundTripPassengers.length > 0) {
+                report += "Angkutan Pulang Pergi\n";
+                roundTripPassengers.forEach(passenger => {
+                    report += `- ${passenger} (Rp ${ROUND_TRIP_PRICE.toLocaleString('id-ID')})\n`;
+                });
+                report += "\n";
+            }
+
+            // Berangkat Saja
+            if (departureOnlyPassengers.length > 0) {
+                report += "Berangkat Saja\n";
+                departureOnlyPassengers.forEach(passenger => {
+                    report += `- ${passenger} (Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')})\n`;
+                });
+                report += "\n";
+            }
+
+            // Pulang Saja
+            if (returnOnlyPassengers.length > 0) {
+                report += "Pulang Saja\n";
+                returnOnlyPassengers.forEach(passenger => {
+                    report += `- ${passenger} (Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')})\n`;
+                });
+                report += "\n";
+            }
+
+            report += `Total Untuk ${driver}: Rp ${driverTotal.toLocaleString('id-ID')}\n\n`;
+            totalAllDrivers += driverTotal;
         }
 
-        report += `Total keseluruhan: Rp ${totalAllDrivers.toLocaleString('id-ID')}`;
+        report += `Total Keseluruhan: Rp ${totalAllDrivers.toLocaleString('id-ID')}`;
         return report;
     }
 
@@ -285,5 +298,16 @@ export class BotServiceImpl implements BotService {
             console.error(`Error parsing ${type} text:`, error);
             return "Terjadi kesalahan saat memproses input. Pastikan format sudah benar.";
         }
+    }
+
+    async backupDatabase(chatId: number): Promise<{ path: string; filename: string }> {
+        const dbPath = "database/angkot.db";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupFilename = `angkot-backup-${timestamp}.db`;
+
+        return {
+            path: dbPath,
+            filename: backupFilename
+        };
     }
 }

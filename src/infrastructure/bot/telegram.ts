@@ -1,4 +1,4 @@
-import { Bot, Context } from "grammy";
+import { Bot, Context, InputFile } from "grammy";
 import type { BotService } from "../../core/ports/bot";
 
 const HELP_MESSAGE = `
@@ -10,6 +10,7 @@ Perintah yang tersedia:
 /drivers - Daftar semua supir
 /report - Laporan hari ini
 /report_date YYYY-MM-DD - Laporan per tanggal
+/backupdb - Backup database
 
 Format input perjalanan:
 antar
@@ -54,6 +55,26 @@ export function setupBot(bot: Bot, service: BotService): void {
         const chatId: number = ctx.chat?.id ?? 0;
         const response: string = await service.getTodayReport(chatId);
         await ctx.reply(response);
+    });
+
+    bot.command("backupdb", async (ctx: Context) => {
+        const chatId: number = ctx.chat?.id ?? 0;
+        try {
+            const { path, filename } = await service.backupDatabase(chatId);
+
+            // Kirim file database sebagai dokumen
+            await ctx.reply("Memulai backup database...");
+
+            await ctx.replyWithDocument(
+                new InputFile(path, filename),
+                {
+                    caption: "Database backup"
+                }
+            );
+        } catch (error) {
+            console.error("Error during database backup:", error);
+            await ctx.reply("Terjadi kesalahan saat melakukan backup database");
+        }
     });
 
     bot.on("message", async (ctx: Context) => {
@@ -103,4 +124,10 @@ export function setupBot(bot: Bot, service: BotService): void {
             return;
         }
     });
+
+    // Tambahkan command ke daftar commands
+    bot.api.setMyCommands([
+        // ... command lainnya ...
+        { command: "backupdb", description: "Backup database" },
+    ]);
 }

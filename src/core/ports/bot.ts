@@ -16,4 +16,5 @@ export interface BotService {
     parseAndProcessDeparture(text: string, chatId: number): Promise<string>;
     parseAndProcessReturn(text: string, chatId: number): Promise<string>;
     parseAndProcessTrip(text: string, chatId: number, type: 'antar' | 'jemput'): Promise<string>;
+    backupDatabase(chatId: number): Promise<{ path: string; filename: string; }>;
 }
