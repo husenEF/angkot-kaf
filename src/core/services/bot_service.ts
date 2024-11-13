@@ -142,4 +142,76 @@ export class BotServiceImpl implements BotService {
 
         return report;
     }
+
+    async parseAndProcessDeparture(text: string, chatId: number): Promise<string> {
+        try {
+            // Memisahkan baris-baris teks
+            const lines = text.trim().split('\n');
+
+            // Mengekstrak nama driver
+            const driverLine = lines[0];
+            const driverMatch = driverLine.match(/Driver:\s*(.+)/i);
+            if (!driverMatch) {
+                return "Format salah. Gunakan format:\nDriver: [nama]\n- [penumpang1]\n- [penumpang2]";
+            }
+            const driverName = driverMatch[1].trim();
+
+            // Mengekstrak nama-nama penumpang
+            const passengers: string[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('-')) {
+                    const passengerName = line.substring(1).trim();
+                    if (passengerName) {
+                        passengers.push(passengerName);
+                    }
+                }
+            }
+
+            if (passengers.length === 0) {
+                return "Tidak ada penumpang yang tercantum";
+            }
+
+            // Memproses keberangkatan
+            return await this.processDeparture(driverName, passengers, chatId);
+        } catch (error) {
+            console.error('Error parsing departure text:', error);
+            return "Terjadi kesalahan saat memproses input. Pastikan format sudah benar.";
+        }
+    }
+
+    async parseAndProcessReturn(text: string, chatId: number): Promise<string> {
+        try {
+            // Menggunakan logika yang sama dengan parseAndProcessDeparture
+            const lines = text.trim().split('\n');
+
+            const driverLine = lines[0];
+            const driverMatch = driverLine.match(/Driver:\s*(.+)/i);
+            if (!driverMatch) {
+                return "Format salah. Gunakan format:\nDriver: [nama]\n- [penumpang1]\n- [penumpang2]";
+            }
+            const driverName = driverMatch[1].trim();
+
+            const passengers: string[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('-')) {
+                    const passengerName = line.substring(1).trim();
+                    if (passengerName) {
+                        passengers.push(passengerName);
+                    }
+                }
+            }
+
+            if (passengers.length === 0) {
+                return "Tidak ada penumpang yang tercantum";
+            }
+
+            // Memproses kepulangan
+            return await this.processReturn(driverName, passengers, chatId);
+        } catch (error) {
+            console.error('Error parsing return text:', error);
+            return "Terjadi kesalahan saat memproses input. Pastikan format sudah benar.";
+        }
+    }
 }

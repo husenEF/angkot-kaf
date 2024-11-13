@@ -13,4 +13,6 @@ export interface BotService {
     processReturn(driverName: string, passengers: string[], chatId: number): Promise<string>;
     getTodayReport(chatId: number): Promise<string>;
     getReportByDate(chatId: number, date: string): Promise<string>;
+    parseAndProcessDeparture(text: string, chatId: number): Promise<string>;
+    parseAndProcessReturn(text: string, chatId: number): Promise<string>;
 }

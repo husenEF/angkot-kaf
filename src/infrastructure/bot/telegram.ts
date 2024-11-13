@@ -51,7 +51,23 @@ export function setupBot(bot: Bot, service: BotService): void {
         const chatId: number = ctx.chat?.id ?? 0;
         const message: string | undefined = ctx.message?.text;
 
+        console.log({
+            timestamp: new Date().toISOString(),
+            chatId: chatId,
+            message: message,
+            username: ctx.from?.username,
+            firstName: ctx.from?.first_name
+        });
+
         if (!message) return;
+
+        if (message.toLowerCase().startsWith('jemput')) {
+            const result = await service.parseAndProcessDeparture(message.substring(6).trim(), chatId);
+            await ctx.reply(result);
+        } else if (message.toLowerCase().startsWith('pulang')) {
+            const result = await service.parseAndProcessReturn(message.substring(6).trim(), chatId);
+            await ctx.reply(result);
+        }
 
         if (service.isWaitingForPassengerName(chatId)) {
             await service.addPassenger(message, chatId);

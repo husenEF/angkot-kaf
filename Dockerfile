@@ -1,42 +1,34 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache gcc musl-dev
-
-# Enable CGO
-ENV CGO_ENABLED=1
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
+# Copy package files
+COPY package.json bun.lockb ./
 
-# Download dependencies
-RUN go mod download
+# Install dependencies
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN go build -o main main.go
+RUN bun build ./src/index.ts --outdir ./dist
 
 # Final stage
-FROM alpine:latest
-
-# Install runtime dependencies for SQLite
-RUN apk add --no-cache libc6-compat
+FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Copy binary from builder
-COPY --from=builder /app/main .
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
 
 # Create database directory
 RUN mkdir -p database
 
-# Set environment variables
-ENV CGO_ENABLED=1
+# Install production dependencies only
+RUN bun install --production --frozen-lockfile
 
 # Run the application
-CMD ["./main"]
+CMD ["bun", "run", "dist/index.js"]
