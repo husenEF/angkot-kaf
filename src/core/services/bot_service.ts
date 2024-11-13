@@ -118,6 +118,8 @@ export class BotServiceImpl implements BotService {
         }
 
         let report = "Laporan Hari Ini:\n\n";
+        let totalAllDrivers = 0;
+
         for (const driver of drivers) {
             const departurePassengers = await this.storage.getDeparturePassengers(
                 driver,
@@ -128,11 +130,41 @@ export class BotServiceImpl implements BotService {
                 chatId
             );
 
+            let driverTotal = 0;
+            let tripDetails = "";
+
+            // Hitung biaya keberangkatan
+            if (departurePassengers.length > 0) {
+                const departureTotal = SINGLE_TRIP_PRICE * departurePassengers.length;
+                driverTotal += departureTotal;
+                tripDetails += "Berangkat:\n";
+                departurePassengers.forEach(passenger => {
+                    tripDetails += `- ${passenger}: Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')}\n`;
+                });
+            }
+
+            // Hitung biaya kepulangan
+            if (returnPassengers.length > 0) {
+                tripDetails += "\nPulang:\n";
+                for (const passenger of returnPassengers) {
+                    const hasDepartureToday = departurePassengers.includes(passenger);
+                    const returnPrice = hasDepartureToday ?
+                        ROUND_TRIP_PRICE - SINGLE_TRIP_PRICE :
+                        SINGLE_TRIP_PRICE;
+                    driverTotal += returnPrice;
+                    tripDetails += `- ${passenger}: Rp ${returnPrice.toLocaleString('id-ID')}${hasDepartureToday ? ' (Pulang PP)' : ''}\n`;
+                }
+            }
+
+            // Tambahkan ke total keseluruhan
+            totalAllDrivers += driverTotal;
+
             report += `Supir: ${driver}\n`;
-            report += "Berangkat: " + departurePassengers.join(", ") + "\n";
-            report += "Pulang: " + returnPassengers.join(", ") + "\n\n";
+            report += tripDetails;
+            report += `Total untuk ${driver}: Rp ${driverTotal.toLocaleString('id-ID')}\n\n`;
         }
 
+        report += `Total keseluruhan: Rp ${totalAllDrivers.toLocaleString('id-ID')}`;
         return report;
     }
 
@@ -143,6 +175,8 @@ export class BotServiceImpl implements BotService {
         }
 
         let report = `Laporan Tanggal ${date}:\n\n`;
+        let totalAllDrivers = 0;
+
         for (const driver of drivers) {
             const departurePassengers = await this.storage.getDeparturePassengersByDate(
                 driver,
@@ -155,11 +189,41 @@ export class BotServiceImpl implements BotService {
                 date
             );
 
+            let driverTotal = 0;
+            let tripDetails = "";
+
+            // Hitung biaya keberangkatan
+            if (departurePassengers.length > 0) {
+                const departureTotal = SINGLE_TRIP_PRICE * departurePassengers.length;
+                driverTotal += departureTotal;
+                tripDetails += "Berangkat:\n";
+                departurePassengers.forEach(passenger => {
+                    tripDetails += `- ${passenger}: Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')}\n`;
+                });
+            }
+
+            // Hitung biaya kepulangan
+            if (returnPassengers.length > 0) {
+                tripDetails += "\nPulang:\n";
+                for (const passenger of returnPassengers) {
+                    const hasDepartureToday = departurePassengers.includes(passenger);
+                    const returnPrice = hasDepartureToday ?
+                        ROUND_TRIP_PRICE - SINGLE_TRIP_PRICE :
+                        SINGLE_TRIP_PRICE;
+                    driverTotal += returnPrice;
+                    tripDetails += `- ${passenger}: Rp ${returnPrice.toLocaleString('id-ID')}${hasDepartureToday ? ' (Pulang PP)' : ''}\n`;
+                }
+            }
+
+            // Tambahkan ke total keseluruhan
+            totalAllDrivers += driverTotal;
+
             report += `Supir: ${driver}\n`;
-            report += "Berangkat: " + departurePassengers.join(", ") + "\n";
-            report += "Pulang: " + returnPassengers.join(", ") + "\n\n";
+            report += tripDetails;
+            report += `Total untuk ${driver}: Rp ${driverTotal.toLocaleString('id-ID')}\n\n`;
         }
 
+        report += `Total keseluruhan: Rp ${totalAllDrivers.toLocaleString('id-ID')}`;
         return report;
     }
 
