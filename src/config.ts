@@ -1,11 +1,4 @@
-import * as dotenv from "dotenv";
-import { join } from "path";
 import { z } from "zod";
-
-// Load environment variables dari file .env dengan path yang benar
-dotenv.config({
-    path: join(process.cwd(), '.env')
-});
 
 // Definisikan schema untuk validasi environment variables
 const envSchema = z.object({
@@ -17,13 +10,15 @@ const envSchema = z.object({
     }).transform(Number),
 });
 
-// Parse dan validasi environment variables
-const parsed = envSchema.safeParse(process.env);
+// Parse dan validasi environment variables langsung dari process.env
+const parsed = envSchema.safeParse({
+    TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN,
+    ADMIN_ID: process.env.ADMIN_ID
+});
 
 if (!parsed.success) {
     console.error("❌ Validasi environment variables gagal:", parsed.error.toString());
     process.exit(1);
 }
 
-// Export config yang sudah divalidasi
 export const config = parsed.data;
