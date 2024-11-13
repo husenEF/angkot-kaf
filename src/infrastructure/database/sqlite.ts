@@ -1,4 +1,4 @@
-import { Database } from "sqlite3";
+import { Database } from "bun:sqlite";
 import type { Storage } from "../../core/ports/storage";
 
 interface DriverRow {
@@ -34,36 +34,36 @@ export class SQLiteDB implements Storage {
     private static async initializeTables(db: Database): Promise<void> {
         const queries = [
             `CREATE TABLE IF NOT EXISTS drivers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        chat_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(name, chat_id)
-      )`,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                chat_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(name, chat_id)
+            );`,
             `CREATE TABLE IF NOT EXISTS passengers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        chat_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(name, chat_id)
-      )`,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                chat_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(name, chat_id)
+            );`,
             `CREATE TABLE IF NOT EXISTS trips (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        driver_name TEXT NOT NULL,
-        passenger_name TEXT NOT NULL,
-        chat_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                driver_name TEXT NOT NULL,
+                passenger_name TEXT NOT NULL,
+                chat_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );`
         ];
 
         for (const query of queries) {
-            await new Promise<void>((resolve, reject) => {
-                db.run(query, (err: Error | null) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
+            try {
+                await db.run(query);
+            } catch (error) {
+                console.error('Error executing query:', query);
+                throw error;
+            }
         }
     }
 
