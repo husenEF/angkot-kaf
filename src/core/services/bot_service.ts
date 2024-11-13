@@ -3,13 +3,13 @@ import type { BotService } from "../ports/bot";
 import type { Storage } from "../ports/storage";
 
 export class BotServiceImpl implements BotService {
-    private storage: Storage;
+    private repository: Storage;
     private waitingForPassengerName: Map<number, boolean>;
     private waitingForDriverName: Map<number, boolean>;
     private waitingForCatatan: Map<number, boolean>;
 
-    constructor(storage: Storage) {
-        this.storage = storage;
+    constructor(repository: Storage) {
+        this.repository = repository;
         this.waitingForPassengerName = new Map();
         this.waitingForDriverName = new Map();
         this.waitingForCatatan = new Map();
@@ -25,7 +25,7 @@ export class BotServiceImpl implements BotService {
     }
 
     async addPassenger(name: string, chatId: number): Promise<void> {
-        await this.storage.savePassenger(name, chatId);
+        await this.repository.savePassenger(name, chatId);
     }
 
     isWaitingForPassengerName(chatId: number): boolean {
@@ -39,7 +39,7 @@ export class BotServiceImpl implements BotService {
     }
 
     async getPassengerList(chatId: number): Promise<string> {
-        const passengers = await this.storage.getPassengers(chatId);
+        const passengers = await this.repository.getPassengers(chatId);
         if (passengers.length === 0) {
             return "Belum ada penumpang yang terdaftar";
         }
@@ -52,11 +52,11 @@ export class BotServiceImpl implements BotService {
     }
 
     async addDriver(name: string, chatId: number): Promise<void> {
-        await this.storage.saveDriver(name, chatId);
+        await this.repository.saveDriver(name, chatId);
     }
 
     async getDriverList(chatId: number): Promise<string> {
-        const drivers = await this.storage.getDrivers(chatId);
+        const drivers = await this.repository.getDrivers(chatId);
         if (drivers.length === 0) {
             return "Belum ada supir yang terdaftar";
         }
@@ -76,16 +76,16 @@ export class BotServiceImpl implements BotService {
         passengers: string[],
         chatId: number
     ): Promise<string> {
-        const driverExists = await this.storage.isDriverExists(driverName, chatId);
+        const driverExists = await this.repository.isDriverExists(driverName, chatId);
         if (!driverExists) {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
         // Hapus data departure sebelumnya untuk driver ini pada hari yang sama
-        await this.storage.deleteDepartureToday(driverName, chatId);
+        await this.repository.deleteDepartureToday(driverName, chatId);
 
         // Simpan data departure yang baru
-        await this.storage.saveDeparture(driverName, passengers, chatId);
+        await this.repository.saveDeparture(driverName, passengers, chatId);
 
         return `Keberangkatan berhasil dicatat\nDriver: ${driverName}\nPenumpang:\n${passengers.map(p => `- ${p}`).join('\n')}`;
     }
@@ -95,16 +95,16 @@ export class BotServiceImpl implements BotService {
         passengers: string[],
         chatId: number
     ): Promise<string> {
-        const driverExists = await this.storage.isDriverExists(driverName, chatId);
+        const driverExists = await this.repository.isDriverExists(driverName, chatId);
         if (!driverExists) {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
         // Hapus data return sebelumnya untuk driver ini pada hari yang sama
-        await this.storage.deleteReturnToday(driverName, chatId);
+        await this.repository.deleteReturnToday(driverName, chatId);
 
         // Dapatkan daftar penumpang yang berangkat hari ini
-        const departurePassengers = await this.storage.getDeparturePassengers(driverName, chatId);
+        const departurePassengers = await this.repository.getDeparturePassengers(driverName, chatId);
 
         // Identifikasi penumpang yang berangkat tapi tidak pulang
         const notReturningPassengers = departurePassengers.filter(p => !passengers.includes(p));
@@ -117,13 +117,13 @@ export class BotServiceImpl implements BotService {
         }
 
         // Simpan data return yang baru
-        await this.storage.saveReturn(driverName, passengers, chatId);
+        await this.repository.saveReturn(driverName, passengers, chatId);
 
         return response;
     }
 
     async getTodayReport(chatId: number): Promise<string> {
-        const drivers = await this.storage.getTodayDrivers(chatId);
+        const drivers = await this.repository.getTodayDrivers(chatId);
         if (drivers.length === 0) {
             return "Belum ada perjalanan hari ini";
         }
@@ -132,8 +132,8 @@ export class BotServiceImpl implements BotService {
         let totalAllDrivers = 0;
 
         for (const driver of drivers) {
-            const departurePassengers = await this.storage.getDeparturePassengers(driver, chatId);
-            const returnPassengers = await this.storage.getReturnPassengers(driver, chatId);
+            const departurePassengers = await this.repository.getDeparturePassengers(driver, chatId);
+            const returnPassengers = await this.repository.getReturnPassengers(driver, chatId);
 
             let driverTotal = 0;
             let roundTripPassengers = [];
@@ -193,7 +193,7 @@ export class BotServiceImpl implements BotService {
     }
 
     async getReportByDate(chatId: number, date: string): Promise<string> {
-        const drivers = await this.storage.getDriversByDate(chatId, date);
+        const drivers = await this.repository.getDriversByDate(chatId, date);
         if (drivers.length === 0) {
             return `Belum ada perjalanan pada tanggal ${date}`;
         }
@@ -202,12 +202,12 @@ export class BotServiceImpl implements BotService {
         let totalAllDrivers = 0;
 
         for (const driver of drivers) {
-            const departurePassengers = await this.storage.getDeparturePassengersByDate(
+            const departurePassengers = await this.repository.getDeparturePassengersByDate(
                 driver,
                 chatId,
                 date
             );
-            const returnPassengers = await this.storage.getReturnPassengersByDate(
+            const returnPassengers = await this.repository.getReturnPassengersByDate(
                 driver,
                 chatId,
                 date
@@ -361,16 +361,16 @@ export class BotServiceImpl implements BotService {
 
             // Simpan data perjalanan
             if (roundTripPassengers.length > 0) {
-                await this.storage.saveDeparture(driverName, roundTripPassengers, chatId);
-                await this.storage.saveReturn(driverName, roundTripPassengers, chatId);
+                await this.repository.saveDeparture(driverName, roundTripPassengers, chatId);
+                await this.repository.saveReturn(driverName, roundTripPassengers, chatId);
             }
 
             if (departureOnlyPassengers.length > 0) {
-                await this.storage.saveDeparture(driverName, departureOnlyPassengers, chatId);
+                await this.repository.saveDeparture(driverName, departureOnlyPassengers, chatId);
             }
 
             if (returnOnlyPassengers.length > 0) {
-                await this.storage.saveReturn(driverName, returnOnlyPassengers, chatId);
+                await this.repository.saveReturn(driverName, returnOnlyPassengers, chatId);
             }
 
             // Buat laporan

@@ -27,6 +27,8 @@ async function main() {
             { command: "passengers", description: "List all passengers" },
             { command: "drivers", description: "List all drivers" },
             { command: "report", description: "Get today's report" },
+            { command: "catat", description: "Catat perjalanan" },
+            { command: "backupdb", description: "Backup database" },
         ]);
 
         console.log("Bot is running...");
