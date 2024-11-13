@@ -1,3 +1,4 @@
+import { ROUND_TRIP_PRICE, SINGLE_TRIP_PRICE } from "../constants/price";
 import type { BotService } from "../ports/bot";
 import type { Storage } from "../ports/storage";
 
@@ -73,8 +74,15 @@ export class BotServiceImpl implements BotService {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
+        const totalAmount = SINGLE_TRIP_PRICE * passengers.length;
+        let priceDetails = "Detail Pembayaran:\n";
+        passengers.forEach(passenger => {
+            priceDetails += `${passenger}: Rp ${SINGLE_TRIP_PRICE.toLocaleString('id-ID')}\n`;
+        });
+
         await this.storage.saveDeparture(driverName, passengers, chatId);
-        return "Keberangkatan berhasil dicatat";
+
+        return `Keberangkatan berhasil dicatat\n\n${priceDetails}\nTotal untuk driver: Rp ${totalAmount.toLocaleString('id-ID')}`;
     }
 
     async processReturn(
@@ -87,8 +95,20 @@ export class BotServiceImpl implements BotService {
             return `Supir ${driverName} tidak terdaftar`;
         }
 
+        // Calculate prices for each passenger
+        let totalAmount = 0;
+        let priceDetails = "Detail Pembayaran:\n";
+
+        for (const passenger of passengers) {
+            const hasDepartureToday = await this.storage.hasDepartureToday(passenger, chatId);
+            const price = hasDepartureToday ? ROUND_TRIP_PRICE - SINGLE_TRIP_PRICE : SINGLE_TRIP_PRICE;
+            totalAmount += price;
+            priceDetails += `${passenger}: Rp ${price.toLocaleString('id-ID')}\n`;
+        }
+
         await this.storage.saveReturn(driverName, passengers, chatId);
-        return "Kepulangan berhasil dicatat";
+
+        return `Kepulangan berhasil dicatat\n\n${priceDetails}\nTotal untuk driver: Rp ${totalAmount.toLocaleString('id-ID')}`;
     }
 
     async getTodayReport(chatId: number): Promise<string> {
@@ -143,46 +163,8 @@ export class BotServiceImpl implements BotService {
         return report;
     }
 
-    async parseAndProcessDeparture(text: string, chatId: number): Promise<string> {
+    async parseAndProcessTrip(text: string, chatId: number, type: 'antar' | 'jemput'): Promise<string> {
         try {
-            // Memisahkan baris-baris teks
-            const lines = text.trim().split('\n');
-
-            // Mengekstrak nama driver
-            const driverLine = lines[0];
-            const driverMatch = driverLine.match(/Driver:\s*(.+)/i);
-            if (!driverMatch) {
-                return "Format salah. Gunakan format:\nDriver: [nama]\n- [penumpang1]\n- [penumpang2]";
-            }
-            const driverName = driverMatch[1].trim();
-
-            // Mengekstrak nama-nama penumpang
-            const passengers: string[] = [];
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line.startsWith('-')) {
-                    const passengerName = line.substring(1).trim();
-                    if (passengerName) {
-                        passengers.push(passengerName);
-                    }
-                }
-            }
-
-            if (passengers.length === 0) {
-                return "Tidak ada penumpang yang tercantum";
-            }
-
-            // Memproses keberangkatan
-            return await this.processDeparture(driverName, passengers, chatId);
-        } catch (error) {
-            console.error('Error parsing departure text:', error);
-            return "Terjadi kesalahan saat memproses input. Pastikan format sudah benar.";
-        }
-    }
-
-    async parseAndProcessReturn(text: string, chatId: number): Promise<string> {
-        try {
-            // Menggunakan logika yang sama dengan parseAndProcessDeparture
             const lines = text.trim().split('\n');
 
             const driverLine = lines[0];
@@ -207,10 +189,14 @@ export class BotServiceImpl implements BotService {
                 return "Tidak ada penumpang yang tercantum";
             }
 
-            // Memproses kepulangan
-            return await this.processReturn(driverName, passengers, chatId);
+            // Memproses sesuai tipe (antar atau jemput)
+            if (type === 'antar') {
+                return await this.processDeparture(driverName, passengers, chatId);
+            } else {
+                return await this.processReturn(driverName, passengers, chatId);
+            }
         } catch (error) {
-            console.error('Error parsing return text:', error);
+            console.error(`Error parsing ${type} text:`, error);
             return "Terjadi kesalahan saat memproses input. Pastikan format sudah benar.";
         }
     }

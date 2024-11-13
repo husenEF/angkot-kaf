@@ -15,4 +15,5 @@ export interface BotService {
     getReportByDate(chatId: number, date: string): Promise<string>;
     parseAndProcessDeparture(text: string, chatId: number): Promise<string>;
     parseAndProcessReturn(text: string, chatId: number): Promise<string>;
+    parseAndProcessTrip(text: string, chatId: number, type: 'antar' | 'jemput'): Promise<string>;
 }

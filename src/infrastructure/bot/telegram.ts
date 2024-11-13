@@ -2,16 +2,25 @@ import { Bot, Context } from "grammy";
 import type { BotService } from "../../core/ports/bot";
 
 const HELP_MESSAGE = `
-Available commands:
-/ping - Check bot status
-/passenger - Add new passenger
-/driver - Add new driver
-/passengers - List all passengers
-/drivers - List all drivers
-/departure <driver> - <passenger1>, <passenger2> - Record departure
-/return <driver> - <passenger1>, <passenger2> - Record return
-/report - Get today's report
-/report_date YYYY-MM-DD - Get report by date
+Perintah yang tersedia:
+/ping - Cek status bot
+/passenger - Tambah penumpang baru
+/driver - Tambah supir baru
+/passengers - Daftar semua penumpang
+/drivers - Daftar semua supir
+/report - Laporan hari ini
+/report_date YYYY-MM-DD - Laporan per tanggal
+
+Format input perjalanan:
+antar
+Driver: [nama_supir]
+- [penumpang1]
+- [penumpang2]
+
+jemput
+Driver: [nama_supir]
+- [penumpang1]
+- [penumpang2]
 `;
 
 export function setupBot(bot: Bot, service: BotService): void {
@@ -61,12 +70,18 @@ export function setupBot(bot: Bot, service: BotService): void {
 
         if (!message) return;
 
+        if (message.toLowerCase().startsWith('antar')) {
+            const inputText = message.substring(5).trim();
+            const result = await service.parseAndProcessTrip(inputText, chatId, 'antar');
+            await ctx.reply(result);
+            return;
+        }
+
         if (message.toLowerCase().startsWith('jemput')) {
-            const result = await service.parseAndProcessDeparture(message.substring(6).trim(), chatId);
+            const inputText = message.substring(6).trim();
+            const result = await service.parseAndProcessTrip(inputText, chatId, 'jemput');
             await ctx.reply(result);
-        } else if (message.toLowerCase().startsWith('pulang')) {
-            const result = await service.parseAndProcessReturn(message.substring(6).trim(), chatId);
-            await ctx.reply(result);
+            return;
         }
 
         if (service.isWaitingForPassengerName(chatId)) {
@@ -80,6 +95,11 @@ export function setupBot(bot: Bot, service: BotService): void {
             await service.addDriver(message, chatId);
             service.clearWaitingStatus(chatId);
             await ctx.reply(`Supir ${message} berhasil ditambahkan`);
+            return;
+        }
+
+        if (message.toLowerCase() === '/help' || message.toLowerCase() === 'help') {
+            await ctx.reply(HELP_MESSAGE);
             return;
         }
     });
