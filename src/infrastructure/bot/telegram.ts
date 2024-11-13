@@ -11,6 +11,7 @@ Perintah yang tersedia:
 /report - Laporan hari ini
 /report_date YYYY-MM-DD - Laporan per tanggal
 /backupdb - Backup database
+/catat - Catat perjalanan
 
 Format input perjalanan:
 antar
@@ -77,6 +78,12 @@ export function setupBot(bot: Bot, service: BotService): void {
         }
     });
 
+    bot.command("catat", async (ctx: Context) => {
+        const chatId: number = ctx.chat?.id ?? 0;
+        const response: string = service.handleCatat(chatId);
+        await ctx.reply(response);
+    });
+
     bot.on("message", async (ctx: Context) => {
         const chatId: number = ctx.chat?.id ?? 0;
         const message: string | undefined = ctx.message?.text;
@@ -116,6 +123,13 @@ export function setupBot(bot: Bot, service: BotService): void {
             await service.addDriver(message, chatId);
             service.clearWaitingStatus(chatId);
             await ctx.reply(`Supir ${message} berhasil ditambahkan`);
+            return;
+        }
+
+        if (service.isWaitingForCatatan(chatId)) {
+            const result = await service.processCatatanPerjalanan(message, chatId);
+            service.clearWaitingStatus(chatId);
+            await ctx.reply(result);
             return;
         }
 

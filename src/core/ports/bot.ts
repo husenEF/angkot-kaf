@@ -9,6 +9,7 @@ export interface BotService {
     addDriver(name: string, chatId: number): Promise<void>;
     getDriverList(chatId: number): Promise<string>;
     isWaitingForDriverName(chatId: number): boolean;
+    isWaitingForCatatan(chatId: number): boolean;
     processDeparture(driverName: string, passengers: string[], chatId: number): Promise<string>;
     processReturn(driverName: string, passengers: string[], chatId: number): Promise<string>;
     getTodayReport(chatId: number): Promise<string>;
@@ -17,4 +18,6 @@ export interface BotService {
     parseAndProcessReturn(text: string, chatId: number): Promise<string>;
     parseAndProcessTrip(text: string, chatId: number, type: 'antar' | 'jemput'): Promise<string>;
     backupDatabase(chatId: number): Promise<{ path: string; filename: string; }>;
+    handleCatat(chatId: number): string;
+    processCatatanPerjalanan(text: string, chatId: number): Promise<string>;
 }

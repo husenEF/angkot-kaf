@@ -6,11 +6,13 @@ export class BotServiceImpl implements BotService {
     private storage: Storage;
     private waitingForPassengerName: Map<number, boolean>;
     private waitingForDriverName: Map<number, boolean>;
+    private waitingForCatatan: Map<number, boolean>;
 
     constructor(storage: Storage) {
         this.storage = storage;
         this.waitingForPassengerName = new Map();
         this.waitingForDriverName = new Map();
+        this.waitingForCatatan = new Map();
     }
 
     handlePing(): string {
@@ -33,6 +35,7 @@ export class BotServiceImpl implements BotService {
     clearWaitingStatus(chatId: number): void {
         this.waitingForPassengerName.delete(chatId);
         this.waitingForDriverName.delete(chatId);
+        this.waitingForCatatan.delete(chatId);
     }
 
     async getPassengerList(chatId: number): Promise<string> {
@@ -62,6 +65,10 @@ export class BotServiceImpl implements BotService {
 
     isWaitingForDriverName(chatId: number): boolean {
         return this.waitingForDriverName.get(chatId) || false;
+    }
+
+    isWaitingForCatatan(chatId: number): boolean {
+        return this.waitingForCatatan.get(chatId) || false;
     }
 
     async processDeparture(
@@ -291,5 +298,101 @@ export class BotServiceImpl implements BotService {
             path: dbPath,
             filename: backupFilename
         };
+    }
+
+    handleCatat(chatId: number): string {
+        this.waitingForCatatan.set(chatId, true);
+        return "Silakan masukkan catatan perjalanan dengan format:\n\n" +
+            "Hari, Tanggal\n" +
+            "Driver: [nama_driver]\n\n" +
+            "Antar & Jemput:\n" +
+            "1. [nama_penumpang]\n" +
+            "2. [nama_penumpang]\n\n" +
+            "Antar aja:\n" +
+            "1. [nama_penumpang]\n\n" +
+            "Jemput aja:\n" +
+            "1. [nama_penumpang]";
+    }
+
+    async processCatatanPerjalanan(text: string, chatId: number): Promise<string> {
+        try {
+            const lines = text.split('\n').map(line => line.trim());
+            const driverMatch = lines.find(line => line.toLowerCase().startsWith('driver'))?.match(/driver\s*:\s*(.+)/i);
+
+            if (!driverMatch) {
+                return "Format salah. Mohon sertakan nama driver dengan format 'Driver: [nama]'";
+            }
+
+            const driverName = driverMatch[1].trim();
+            const roundTripPassengers: string[] = [];
+            const departureOnlyPassengers: string[] = [];
+            const returnOnlyPassengers: string[] = [];
+
+            let currentSection = '';
+
+            for (const line of lines) {
+                if (line.toLowerCase().includes('antar & jemput')) {
+                    currentSection = 'roundtrip';
+                    continue;
+                } else if (line.toLowerCase().includes('antar aja')) {
+                    currentSection = 'departure';
+                    continue;
+                } else if (line.toLowerCase().includes('jemput aja')) {
+                    currentSection = 'return';
+                    continue;
+                }
+
+                const passengerMatch = line.match(/^\d+\.\s*(.+)$/);
+                if (passengerMatch) {
+                    const passengerName = passengerMatch[1].trim();
+                    switch (currentSection) {
+                        case 'roundtrip':
+                            roundTripPassengers.push(passengerName);
+                            break;
+                        case 'departure':
+                            departureOnlyPassengers.push(passengerName);
+                            break;
+                        case 'return':
+                            returnOnlyPassengers.push(passengerName);
+                            break;
+                    }
+                }
+            }
+
+            // Simpan data perjalanan
+            if (roundTripPassengers.length > 0) {
+                await this.storage.saveDeparture(driverName, roundTripPassengers, chatId);
+                await this.storage.saveReturn(driverName, roundTripPassengers, chatId);
+            }
+
+            if (departureOnlyPassengers.length > 0) {
+                await this.storage.saveDeparture(driverName, departureOnlyPassengers, chatId);
+            }
+
+            if (returnOnlyPassengers.length > 0) {
+                await this.storage.saveReturn(driverName, returnOnlyPassengers, chatId);
+            }
+
+            // Buat laporan
+            let report = `✅ Catatan berhasil disimpan\n\n`;
+            report += `Driver: ${driverName}\n\n`;
+
+            if (roundTripPassengers.length > 0) {
+                report += `Antar & Jemput:\n${roundTripPassengers.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\n`;
+            }
+
+            if (departureOnlyPassengers.length > 0) {
+                report += `Antar saja:\n${departureOnlyPassengers.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\n`;
+            }
+
+            if (returnOnlyPassengers.length > 0) {
+                report += `Jemput saja:\n${returnOnlyPassengers.map((p, i) => `${i + 1}. ${p}`).join('\n')}`;
+            }
+
+            return report;
+        } catch (error) {
+            console.error('Error processing catatan:', error);
+            return "Terjadi kesalahan saat memproses catatan. Pastikan format sudah benar.";
+        }
     }
 }
