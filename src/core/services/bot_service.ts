@@ -395,4 +395,12 @@ export class BotServiceImpl implements BotService {
             return "Terjadi kesalahan saat memproses catatan. Pastikan format sudah benar.";
         }
     }
+
+    async parseAndProcessDeparture(text: string, chatId: number): Promise<string> {
+        return this.parseAndProcessTrip(text, chatId, 'antar');
+    }
+
+    async parseAndProcessReturn(text: string, chatId: number): Promise<string> {
+        return this.parseAndProcessTrip(text, chatId, 'jemput');
+    }
 }
