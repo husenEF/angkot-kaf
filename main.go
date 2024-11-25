@@ -17,7 +17,9 @@ func init() {
 	// Set timezone to Asia/Jakarta
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		log.Fatal("Failed to load Asia/Jakarta timezone:", err)
+		log.Printf("Warning: Failed to load Asia/Jakarta timezone: %v. Falling back to UTC+7", err)
+		// Create a fixed timezone offset for Jakarta (UTC+7)
+		loc = time.FixedZone("WIB", 7*60*60) // UTC+7
 	}
 	time.Local = loc
 
