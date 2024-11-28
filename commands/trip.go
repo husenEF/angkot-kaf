@@ -48,11 +48,11 @@ func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// Create trip record with passenger
 		trip := models.Trip{
-			DriverID:    driver.ID,
-			Driver:      driver,
-			TripType:    info.tripType,
-			TripDate:    time.Now(),
-			Passengers:  []models.Passenger{passenger},
+			DriverID:   driver.ID,
+			Driver:     driver,
+			TripType:   info.tripType,
+			TripDate:   time.Now(),
+			Passengers: []models.Passenger{passenger},
 		}
 
 		if err := database.DB.Create(&trip).Error; err != nil {
@@ -90,9 +90,23 @@ func parseTripMessage(text string) (*tripInfo, error) {
 	}
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "driver:"))
 
+	//parse date
+	dateLine := strings.TrimSpace(lines[2])
+	passengerLine := 2
+
+	date := strings.TrimSpace(strings.TrimPrefix(dateLine, "date:"))
+	fmt.Errorf(date)
+	// if date == "" {
+	// 	return nil, fmt.Errorf("Tanggal tidak valid. Gunakan 'date: tanggal'.")
+	// }
+	// tripTime, err := time.Parse("02-01-2006", date)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Format tanggal tidak valid. Gunakan 'date: tanggal'.")
+	// }
+
 	// Parse passengers
 	var passengers []string
-	for i := 2; i < len(lines); i++ {
+	for i := passengerLine; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
 		if line == "" {
 			continue
