@@ -19,6 +19,7 @@ type tripInfo struct {
 	driverName string
 	passengers []string
 	tripType   string
+	tripDate   time.Time
 }
 
 func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -48,11 +49,11 @@ func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// Create trip record with passenger
 		trip := models.Trip{
-			DriverID:    driver.ID,
-			Driver:      driver,
-			TripType:    info.tripType,
-			TripDate:    time.Now(),
-			Passengers:  []models.Passenger{passenger},
+			DriverID:   driver.ID,
+			Driver:     driver,
+			TripType:   info.tripType,
+			TripDate:   info.tripDate,
+			Passengers: []models.Passenger{passenger},
 		}
 
 		if err := database.DB.Create(&trip).Error; err != nil {
@@ -63,7 +64,7 @@ func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	if info.tripType == "antar" {
-		response = formatAntarResponse(driver.Name, info.passengers)
+		response = formatAntarResponse(driver.Name, info.passengers, info.tripDate)
 	} else {
 		response = formatJemputResponse(driver.Name, info.passengers, time.Now())
 	}
@@ -90,9 +91,27 @@ func parseTripMessage(text string) (*tripInfo, error) {
 	}
 	driverName := strings.TrimSpace(strings.TrimPrefix(driverLine, "driver:"))
 
+	// Check for date in the second line
+	var tripDate time.Time
+	var passengerLine int = 2
+	// Parse date
+	dateLine := strings.TrimSpace(lines[2])
+	if strings.HasPrefix(strings.ToLower(dateLine), "date:") {
+		passengerLine = 3
+		dateStr := strings.TrimSpace(strings.TrimPrefix(dateLine, "date:"))
+		dateLayout := "02/01/2006"
+		datetime, err := time.Parse(dateLayout, dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("Format tanggal tidak valid. Gunakan format DD/MM/YYYY")
+		}
+		tripDate = datetime
+	} else {
+		tripDate = time.Now()
+	}
+
 	// Parse passengers
 	var passengers []string
-	for i := 2; i < len(lines); i++ {
+	for i := passengerLine; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
 		if line == "" {
 			continue
@@ -117,11 +136,14 @@ func parseTripMessage(text string) (*tripInfo, error) {
 		driverName: driverName,
 		passengers: passengers,
 		tripType:   tripType,
+		tripDate:   tripDate,
 	}, nil
 }
 
-func formatAntarResponse(driverName string, passengers []string) string {
-	response := fmt.Sprintf("✅ Berhasil mencatat perjalanan antar:\nDriver: %s\n\nPenumpang:\n", driverName)
+func formatAntarResponse(driverName string, passengers []string, tripTime time.Time) string {
+	response := fmt.Sprintf("✅ Berhasil mencatat perjalanan antar:\nDriver: %s", driverName)
+	response += fmt.Sprintf("\nDate: %s\n", tripTime.Format("02-01-2006"))
+	response += "\nPenumpang:\n"
 	for _, passenger := range passengers {
 		response += fmt.Sprintf("- %s\n", passenger)
 	}
@@ -129,7 +151,9 @@ func formatAntarResponse(driverName string, passengers []string) string {
 }
 
 func formatJemputResponse(driverName string, passengers []string, tripTime time.Time) string {
-	response := fmt.Sprintf("✅ Berhasil mencatat perjalanan jemput:\nDriver: %s\n\nRingkasan Pembayaran:\n", driverName)
+	response := fmt.Sprintf("✅ Berhasil mencatat perjalanan jemput:\nDriver: %s", driverName)
+	response += fmt.Sprintf("\nDate: %s\n", tripTime.Format("02-01-2006"))
+	response += "\nRingkasan Pembayaran:\n"
 
 	// Calculate fares for each passenger
 	for _, passenger := range passengers {

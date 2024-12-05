@@ -35,11 +35,13 @@ func HandleGas(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			"1️⃣ Format Antar:\n"+
 			"antar\n"+
 			"driver: <nama_driver>\n"+
+			"date: <tanggal> (opsional,eg: 25-03-2024)\n"+
 			"1. <nama_penumpang_1>\n"+
 			"2. <nama_penumpang_2>\n\n"+
 			"2️⃣ Format Jemput:\n"+
 			"jemput\n"+
 			"driver: <nama_driver>\n"+
+			"date: <tanggal> (opsional,eg: 25-03-2024)\n"+
 			"1. <nama_penumpang_1>\n"+
 			"2. <nama_penumpang_2>\n\n"+
 			"3️⃣ Format Report Tanggal Tertentu:\n"+
