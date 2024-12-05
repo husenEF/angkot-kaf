@@ -22,32 +22,42 @@ type tripInfo struct {
 	tripDate   time.Time
 }
 
+func sendMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
+	msg := tgbotapi.NewMessage(chatID, text)
+	bot.Send(msg)
+}
+
 func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	// Parse the trip message
 	info, err := parseTripMessage(message.Text)
 	if err != nil {
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ %s", err.Error()))
-		bot.Send(msg)
+		sendMessage(bot, message.Chat.ID, fmt.Sprintf("❌ %s", err.Error()))
 		return
 	}
 
-	// Find driver
+	// Find the driver
 	var driver models.Driver
 	if err := database.DB.Where("name = ? AND active = ?", info.driverName, true).First(&driver).Error; err != nil {
-		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Driver tidak ditemukan atau tidak aktif.")
-		bot.Send(msg)
+		sendMessage(bot, message.Chat.ID, "❌ Driver tidak ditemukan atau tidak aktif.")
 		return
 	}
 
-	// Save trips and passengers
-	var response string
+	// Delete existing trips for the driver and trip date
+	if err := database.DB.Where("trip_type = ? AND DATE(trip_date) = ?", info.tripType, info.tripDate.Format("2006-01-02")).
+		Delete(&models.Trip{}).Error; err != nil {
+		sendMessage(bot, message.Chat.ID, "❌ Gagal menghapus data perjalanan.")
+		return
+	}
+
+	// Process passengers and create new trips
+	var failedPassengers []string
 	for _, passengerName := range info.passengers {
 		passenger := models.Passenger{
 			Name:     passengerName,
 			TripType: info.tripType,
-			Amount:   OneWayFare, // Default to one-way fare
+			Amount:   OneWayFare, // Default fare
 		}
 
-		// Create trip record with passenger
 		trip := models.Trip{
 			DriverID:   driver.ID,
 			Driver:     driver,
@@ -57,20 +67,25 @@ func HandleTrip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		if err := database.DB.Create(&trip).Error; err != nil {
-			msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ Gagal mencatat perjalanan untuk %s", passengerName))
-			bot.Send(msg)
+			failedPassengers = append(failedPassengers, passengerName)
 			continue
 		}
 	}
 
+	// Generate response message
+	var response string
 	if info.tripType == "antar" {
 		response = formatAntarResponse(driver.Name, info.passengers, info.tripDate)
 	} else {
-		response = formatJemputResponse(driver.Name, info.passengers, time.Now())
+		response = formatJemputResponse(driver.Name, info.passengers, info.tripDate)
 	}
 
-	msg := tgbotapi.NewMessage(message.Chat.ID, response)
-	bot.Send(msg)
+	if len(failedPassengers) > 0 {
+		response += fmt.Sprintf("\n\n❌ Gagal mencatat perjalanan untuk: %s", strings.Join(failedPassengers, ", "))
+	}
+
+	// Send response message
+	sendMessage(bot, message.Chat.ID, response)
 }
 
 func parseTripMessage(text string) (*tripInfo, error) {

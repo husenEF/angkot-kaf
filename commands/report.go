@@ -18,9 +18,9 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if args == "" {
 		targetDate = time.Now()
 	} else {
-		targetDate, err = time.Parse("02-01-2006", args)
+		targetDate, err = time.Parse("02/01/2006", args)
 		if err != nil {
-			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Format tanggal tidak valid. Gunakan format DD-MM-YYYY")
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Format tanggal tidak valid. Gunakan format DD/MM/YYYY")
 			bot.Send(msg)
 			return
 		}
@@ -41,7 +41,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	if len(trips) == 0 {
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("📊 Tidak ada perjalanan pada tanggal %s", targetDate.Format("02-01-2006")))
+		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("📊 Tidak ada perjalanan pada tanggal %s", targetDate.Format("02/01/2006")))
 		bot.Send(msg)
 		return
 	}
