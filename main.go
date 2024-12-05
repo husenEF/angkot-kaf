@@ -101,6 +101,7 @@ func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if strings.HasPrefix(messageText, "antar") || strings.HasPrefix(messageText, "jemput") {
 		commands.HandleTrip(bot, message)
 	}
+
 }
 
 func handleCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -115,6 +116,8 @@ func handleCommand(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		commands.HandleReport(bot, message)
 	case "backupdb":
 		commands.HandleBackupDB(bot, message)
+	case "delete":
+		commands.HandleDeleteTrip(bot, message)
 	default:
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Perintah tidak dikenali. Gunakan /start untuk melihat daftar perintah.")
 		bot.Send(msg)
